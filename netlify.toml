@@ -1,0 +1,9 @@
+﻿[build]
+  base = "frontend"
+  publish = "frontend"
+  command = ""  # leave empty for plain static site
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
