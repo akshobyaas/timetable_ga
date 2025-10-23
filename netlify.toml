@@ -1,7 +1,7 @@
 ﻿[build]
   base = "frontend"
   publish = "frontend"
-  command = ""  # leave empty for plain static site
+  command = "npm install && npm run build:css"
 
 [[redirects]]
   from = "/*"
