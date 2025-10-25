@@ -1,32 +1,33 @@
 # backend/ga_solver.py
 """
-Simple Genetic Algorithm timetable solver (educational / MVP quality).
+Optimized Genetic Algorithm timetable solver (MVP).
 
-How it works (brief):
-- Each required "class-hour" for all courses is a task.
-- For each task we make a list of valid choices = (slot, faculty) pairs
-  where the faculty can teach that course.
-- An individual is a list of integers; gene i is an index selecting one
-  choice from choices_list[i].
-- Fitness penalizes faculty clashes (same faculty in same slot).
-- GA: population init, tournament selection, single-point crossover,
-  per-gene mutation.
+Key optimizations:
+- Precompute choice arrays (faculty_id, slot_id) to avoid dict lookups in fitness.
+- Compute fitness exactly once per individual per generation (no duplicate evaluations).
+- Avoid building assignment dicts inside fitness; use integer/index lookups.
+- Add early-stop on stagnation (NO_IMPROVE_LIMIT).
+- Keep behavior compatible with previous interface.
 """
 
 import random
 import math
 from collections import defaultdict
 
-# GA parameters (reasonable defaults for MVP)
-POPULATION_SIZE = 80
-GENERATIONS = 150
+# GA parameters (tunable)
+POPULATION_SIZE = 80   # reduce for quick tests (e.g., 40)
+GENERATIONS = 150      # reduce for quick tests (e.g., 80)
 TOURNAMENT_K = 3
 CROSSOVER_RATE = 0.9
 MUTATION_RATE = 0.08
-ELITISM = 1  # keep top 1
+ELITISM = 1  # keep top N
+NO_IMPROVE_LIMIT = 30  # early stop if no improvement for this many generations
 
+# -------------------------
+# Domain construction
+# -------------------------
 def _build_domain(courses_df, faculty_df, slots_df):
-    """Build tasks and choices per task."""
+    """Build tasks (one per required hourly slot) and choices per task."""
     # Convert frames to lists of dicts for easier use
     slots = slots_df.to_dict(orient="records")
     # standardize slot id and slot_index
@@ -83,12 +84,38 @@ def _build_domain(courses_df, faculty_df, slots_df):
 
     return tasks, choices_list
 
+# -------------------------
+# Precompute structures
+# -------------------------
+def _precompute_choice_arrays(choices_list):
+    """
+    Convert choices_list (list of list-of-dicts) into two parallel lists:
+      - choice_faculty_ids[i] = list of faculty ids for task i (indexable by gene)
+      - choice_slot_ids[i] = list of slot ids for task i
+    This avoids repeated dict lookups during fitness evaluation.
+    """
+    choice_faculty_ids = []
+    choice_slot_ids = []
+    # If choices_list is empty for any task, caller should have handled it
+    for choices in choices_list:
+        facs = []
+        slots = []
+        for ch in choices:
+            facs.append(ch.get('faculty_id'))
+            slots.append(ch.get('slot_id'))
+        choice_faculty_ids.append(facs)
+        choice_slot_ids.append(slots)
+    return choice_faculty_ids, choice_slot_ids
+
+# -------------------------
+# Individual ops
+# -------------------------
 def _random_individual(choices_list):
     """Create a random individual: for each task pick random index into its choices."""
     return [random.randrange(len(choices)) for choices in choices_list]
 
 def _decode_individual(individual, tasks, choices_list):
-    """Decode individual into assignments (list of dicts)."""
+    """Decode individual into assignments (list of dicts). Kept for output only."""
     assignments = []
     for i, gene in enumerate(individual):
         choice = choices_list[i][gene]
@@ -102,30 +129,40 @@ def _decode_individual(individual, tasks, choices_list):
         })
     return assignments
 
-def _fitness_of_individual(individual, tasks, choices_list):
+# -------------------------
+# Fitness (optimized)
+# -------------------------
+def _fitness_of_individual(individual, choice_faculty_ids, choice_slot_ids):
     """
-    Compute fitness: high score is better.
-    Penalize faculty clashes (same faculty & same slot).
+    Compute fitness directly from gene indices and precomputed faculty/slot arrays.
+    Avoid constructing full assignment dicts — only count collisions.
     """
-    assignments = _decode_individual(individual, tasks, choices_list)
+    # count (faculty_id, slot_id) collisions using a dict
+    counter = {}
+    for i, gene in enumerate(individual):
+        # get faculty and slot directly
+        # gene is an index into choice lists for task i
+        try:
+            faculty_id = choice_faculty_ids[i][gene]
+            slot_id = choice_slot_ids[i][gene]
+        except Exception:
+            # fallback — should not occur if individuals are valid
+            continue
+        key = (faculty_id, slot_id)
+        counter[key] = counter.get(key, 0) + 1
 
     penalty = 0
-    # count (faculty_id, slot_id) collisions
-    counter = defaultdict(int)
-    for a in assignments:
-        key = (a['faculty_id'], a['slot_id'])
-        counter[key] += 1
-    for k, cnt in counter.items():
+    for cnt in counter.values():
         if cnt > 1:
-            # heavy penalty per extra assignment
             penalty += (cnt - 1) * 1000
 
-    # Additional soft penalties could be added (spread, consecutive hours, room capacity)
     base = 100000  # base to keep fitness positive
     fitness = base - penalty
-    # ensure non-negative
     return float(max(0, fitness))
 
+# -------------------------
+# Selection / crossover / mutation
+# -------------------------
 def _tournament_select(population, fitnesses, k=TOURNAMENT_K):
     best = None
     best_f = None
@@ -153,20 +190,38 @@ def _mutate(individual, choices_list, mutation_rate=MUTATION_RATE):
         if random.random() < mutation_rate:
             individual[i] = random.randrange(len(choices_list[i]))
 
-def _evolve_population(population, choices_list, tasks):
-    # evaluate fitnesses
-    fitnesses = [_fitness_of_individual(ind, tasks, choices_list) for ind in population]
-    # keep elitism
+# -------------------------
+# Evolution (uses cached fitnesses)
+# -------------------------
+def _evolve_population(population, fitnesses, choices_list):
+    """
+    Evolve population using provided fitnesses (cached).
+    Returns the new population (list of individuals).
+    Caller is responsible to compute fitnesses for the returned population.
+    """
+    n = len(population)
     new_pop = []
-    # keep top ELITISM individuals
-    sorted_idx = sorted(range(len(population)), key=lambda i: fitnesses[i], reverse=True)
+
+    # keep top ELITISM individuals (by fitness)
+    sorted_idx = sorted(range(n), key=lambda i: fitnesses[i], reverse=True)
     for i in sorted_idx[:ELITISM]:
         new_pop.append(population[i][:])  # copy
 
-    # build rest of new population
-    while len(new_pop) < len(population):
-        parent1 = _tournament_select(population, fitnesses)
-        parent2 = _tournament_select(population, fitnesses)
+    # tournament selection using cached fitnesses
+    def tournament_select():
+        best = None
+        best_f = None
+        for _ in range(TOURNAMENT_K):
+            idx = random.randrange(n)
+            f = fitnesses[idx]
+            if (best is None) or (f > best_f):
+                best = population[idx]
+                best_f = f
+        return best
+
+    while len(new_pop) < n:
+        parent1 = tournament_select()
+        parent2 = tournament_select()
         if random.random() < CROSSOVER_RATE:
             child1, child2 = _crossover(parent1, parent2)
         else:
@@ -174,10 +229,14 @@ def _evolve_population(population, choices_list, tasks):
         _mutate(child1, choices_list)
         _mutate(child2, choices_list)
         new_pop.append(child1)
-        if len(new_pop) < len(population):
+        if len(new_pop) < n:
             new_pop.append(child2)
+
     return new_pop
 
+# -------------------------
+# Main GA entry
+# -------------------------
 def generate_timetable(courses_df, faculty_df, slots_df):
     """
     Main entry called by backend.
@@ -193,39 +252,65 @@ def generate_timetable(courses_df, faculty_df, slots_df):
         if not choices:
             return {"assignments": [], "best_fitness": 0.0, "error": f"No choices for task {i}"}
 
+    # Precompute arrays for fast lookups in fitness
+    choice_faculty_ids, choice_slot_ids = _precompute_choice_arrays(choices_list)
+
     # initialize population
     population = [_random_individual(choices_list) for _ in range(POPULATION_SIZE)]
 
+    # compute initial fitnesses (one pass)
+    fitnesses = [_fitness_of_individual(ind, choice_faculty_ids, choice_slot_ids) for ind in population]
+
     best_ind = None
     best_fitness = -math.inf
+    no_improve_counter = 0
 
-    # run GA
-    for gen in range(GENERATIONS):
-        # evaluate and track best
-        for ind in population:
-            f = _fitness_of_individual(ind, tasks, choices_list)
-            if f > best_fitness:
-                best_fitness = f
-                best_ind = ind[:]
+    # track best from initial population
+    for idx, f in enumerate(fitnesses):
+        if f > best_fitness:
+            best_fitness = f
+            best_ind = population[idx][:]
+    if best_fitness >= 100000:
+        # perfect found already
+        print("[GA] perfect solution found in initial population")
+    else:
+        # main GA loop
+        for gen in range(GENERATIONS):
+            # evolve using cached fitnesses (avoid double eval)
+            population = _evolve_population(population, fitnesses, choices_list)
 
-        # early exit: perfect (no penalty) -> fitness == base (100000)
-        if best_fitness >= 100000:
-            # print progress to server logs
-            print(f"[GA] generation {gen}: perfect solution found")
-            break
+            # compute fitnesses for the new population (single pass)
+            fitnesses = [_fitness_of_individual(ind, choice_faculty_ids, choice_slot_ids) for ind in population]
 
-        # evolve
-        population = _evolve_population(population, choices_list, tasks)
+            # find best in this generation
+            gen_best_idx = max(range(len(population)), key=lambda i: fitnesses[i])
+            gen_best_f = fitnesses[gen_best_idx]
+            if gen_best_f > best_fitness:
+                best_fitness = gen_best_f
+                best_ind = population[gen_best_idx][:]
+                no_improve_counter = 0
+            else:
+                no_improve_counter += 1
 
-        # occasional progress log (appears in server terminal)
-        if gen % 20 == 0:
-            print(f"[GA] gen {gen} best_fitness={best_fitness}")
+            # occasional log
+            if gen % 20 == 0:
+                print(f"[GA] gen {gen} best_fitness={best_fitness}")
 
-    # decode best individual to assignments
+            # early stop if perfect
+            if best_fitness >= 100000:
+                print(f"[GA] generation {gen}: perfect solution found")
+                break
+
+            # early stop on stagnation
+            if no_improve_counter >= NO_IMPROVE_LIMIT:
+                print(f"[GA] stopping early due to no improvement for {NO_IMPROVE_LIMIT} generations (gen {gen})")
+                break
+
+    # decode best individual to assignments for output
     if best_ind is None:
         # fallback to random
         best_ind = _random_individual(choices_list)
-        best_fitness = _fitness_of_individual(best_ind, tasks, choices_list)
+        best_fitness = _fitness_of_individual(best_ind, choice_faculty_ids, choice_slot_ids)
 
     assignments = _decode_individual(best_ind, tasks, choices_list)
 
