@@ -1,4 +1,4 @@
-﻿[build]
+[build]
   base = "frontend"
   publish = "frontend"
   command = "npm install && npm run build:css"
