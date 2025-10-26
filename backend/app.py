@@ -43,67 +43,82 @@ async def generate_options():
     return Response(status_code=200, headers=headers)
 
 
+import traceback
+from fastapi.responses import JSONResponse, Response
+
+# keep your existing imports and CORS middleware above this
+
 @app.post("/generate")
 async def generate(
     courses: UploadFile = File(...),
     faculty: UploadFile = File(...),
     slots: UploadFile = File(...),
-    runs: int = Form(3),           # how many independent GA trials to run (default 3)
-    seed: int | None = Form(None)  # optional base seed for reproducible trials
+    runs: int = Form(3),
+    seed: int | None = Form(None)
 ):
-    # Parse CSVs
     try:
-        courses_df = pd.read_csv(courses.file)
-        faculty_df = pd.read_csv(faculty.file)
-        slots_df = pd.read_csv(slots.file)
-    except Exception as e:
-        return JSONResponse(status_code=400, content={"error": "Failed to parse CSVs", "detail": str(e)})
-
-    # Run GA multiple times and pick best result
-    best_overall = None
-    best_fit = -math.inf
-    seeds_used = []
-
-    # ensure at least 1 run
-    runs = max(1, int(runs))
-
-    for i in range(runs):
-        # choose seed for this trial
-        if seed is not None:
-            s = int(seed) + i
-        else:
-            # pick a random seed for each trial
-            s = random.randrange(1 << 30)
-        seeds_used.append(s)
-
-        # set RNG seed so the GA is reproducible for this trial
-        random.seed(s)
-
-        # call the GA (it uses python's random module internally)
-        result = generate_timetable(courses_df, faculty_df, slots_df)
-
-        # read fitness (fallback to 0.0 if not provided)
+        # Parse CSVs (explicitly catch parse errors separately if desired)
         try:
-            f = float(result.get("best_fitness", 0.0))
-        except Exception:
-            f = 0.0
+            courses_df = pd.read_csv(courses.file)
+        except Exception as e:
+            raise ValueError(f"Failed to parse courses CSV: {e}")
 
-        # log to server console for visibility
-        print(f"[MULTI-RUN] trial {i+1}/{runs} seed={s} fitness={f}")
+        try:
+            faculty_df = pd.read_csv(faculty.file)
+        except Exception as e:
+            raise ValueError(f"Failed to parse faculty CSV: {e}")
 
-        # keep best
-        if f > best_fit:
-            best_fit = f
-            best_overall = result.copy() if isinstance(result, dict) else {"assignments": result}
-            # annotate which trial & seed produced the best
-            best_overall["_best_trial_index"] = i
-            best_overall["_best_seed"] = s
-            best_overall["_best_fitness"] = f
+        try:
+            slots_df = pd.read_csv(slots.file)
+        except Exception as e:
+            raise ValueError(f"Failed to parse slots CSV: {e}")
 
-    # add metadata for response
-    if best_overall is None:
-        best_overall = {"assignments": [], "best_fitness": 0.0}
-    best_overall["_runs_requested"] = runs
-    best_overall["_seeds_tried"] = seeds_used
+        # run GA runs (your existing logic)
+        best_overall = None
+        best_fit = -float("inf")
+        seeds_used = []
+        runs = max(1, int(runs))
 
-    return JSONResponse(content=best_overall)
+        for i in range(runs):
+            if seed is not None:
+                s = int(seed) + i
+            else:
+                s = random.randrange(1 << 30)
+            seeds_used.append(s)
+            random.seed(s)
+            result = generate_timetable(courses_df, faculty_df, slots_df)
+            f = float(result.get("best_fitness", 0.0)) if isinstance(result, dict) else 0.0
+            print(f"[MULTI-RUN] trial {i+1}/{runs} seed={s} fitness={f}")
+            if f > best_fit:
+                best_fit = f
+                best_overall = result.copy() if isinstance(result, dict) else {"assignments": result}
+                best_overall["_best_trial_index"] = i
+                best_overall["_best_seed"] = s
+                best_overall["_best_fitness"] = f
+
+        if best_overall is None:
+            best_overall = {"assignments": [], "best_fitness": 0.0}
+        best_overall["_runs_requested"] = runs
+        best_overall["_seeds_tried"] = seeds_used
+
+        return JSONResponse(content=best_overall)
+
+    except Exception as exc:
+        # Print full traceback to server logs (Render Console)
+        tb = traceback.format_exc()
+        print("=== /generate error ===")
+        print(tb)
+        print("=== end traceback ===")
+
+        # Return JSON error with CORS headers so browser will show it
+        headers = {
+            "Access-Control-Allow-Origin": "https://tt-generator-ga.netlify.app",
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept",
+            "Access-Control-Allow-Credentials": "true",
+        }
+        return JSONResponse(
+            status_code=500,
+            content={"error": str(exc), "traceback": tb.splitlines()[-30:]},  # last 30 lines for brevity
+            headers=headers
+        )
