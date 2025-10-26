@@ -656,7 +656,7 @@ function renderTimetable(assignments) {
   }
   const days = [...new Set(assignments.map(a => a.day))].sort();
   const maxSlot = Math.max(...assignments.map(a => a.slot_index));
-  let html = '<table class="min-w-full text-sm border-collapse border border-gray-200 dark:border-gray-600">';
+let html = '<table class="timetable-card min-w-full text-sm border-collapse border border-gray-200 dark:border-gray-600">';
   html += '<thead class="bg-gray-50 dark:bg-gray-700"><tr class="text-left"><th class="p-2 border-b border-gray-200 dark:border-gray-600">Slot\\Day</th>';
   for (const d of days) html += `<th class="p-2 border-b border-gray-200 dark:border-gray-600">${d}</th>`;
   html += '</tr></thead><tbody>';
