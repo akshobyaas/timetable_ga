@@ -1,5 +1,32 @@
-﻿@tailwind base;
+@tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* You can add custom CSS below */
+@layer components {
+    .slot-cell {
+        min-width: 140px;
+    }
+    .modal-backdrop {
+        @apply fixed inset-0 bg-black bg-opacity-35 flex items-center justify-center;
+        z-index: 60;
+    }
+    .modal {
+        @apply bg-white rounded-lg shadow-xl max-w-4xl w-full p-4;
+    }
+    .chip {
+        @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 text-sm cursor-pointer;
+    }
+    .btn-small {
+        @apply px-2.5 py-1.5 text-sm rounded;
+    }
+}
+
+body {
+    background-color: #f8fafc;
+}
+
+
+
+.input-error {
+    @apply border-l-4 border-l-red-500;
+}

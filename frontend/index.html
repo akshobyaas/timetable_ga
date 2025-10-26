@@ -6,37 +6,21 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Timetable GA — Simple UI</title>
 
-  <!-- html2canvas for exporting DOM to image -->
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+  <link rel="stylesheet" href="./dist/styles.css">
 
-  <!-- Tailwind CDN for quick styling -->
-<link rel="stylesheet" href="./dist/styles.css">
-
-
-  <style>
-    body {
-      background: #f8fafc;
-    }
-
-    .slot-cell {
-      min-width: 140px;
-    }
-
-    table input {
-      outline: none;
-    }
-  </style>
 </head>
 
-<body class="p-6 font-sans">
-  <div class="max-w-4xl mx-auto bg-white rounded shadow p-6">
-    <h1 class="text-2xl font-bold mb-2">Timetable GA — Upload & Generate</h1>
-    <p class="text-sm text-gray-600 mb-4">Upload 3 CSV files (courses, faculty, slots) or enter data manually. Click
-      Generate.</p>
+<body class="p-6 bg-gray-100 text-gray-900">
+  <div class="max-w-4xl mx-auto bg-white rounded-lg shadow-md p-6">
+    <div class="flex justify-between items-center mb-2">
+      <h1 class="text-2xl font-bold">Timetable GA — Upload & Generate</h1>
+    </div>
+    <p id="subheading" class="text-sm text-gray-500 mb-4">Upload 3 CSV files (courses, faculty, slots) or enter data manually. Click Generate.</p>
 
     <div id="statusBlock" class="mb-4 text-sm text-gray-700 flex items-center space-x-3">
       <div id="spinner" class="hidden" aria-hidden="true">
-        <!-- small accessible spinner -->
         <svg class="animate-spin h-5 w-5 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none"
           viewBox="0 0 24 24">
           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -46,578 +30,123 @@
       <div id="status" class="flex-1"></div>
     </div>
 
-    <!-- MODE TOGGLE: Upload CSVs vs Manual Entry -->
     <div class="mb-4 flex items-center space-x-4">
       <label class="inline-flex items-center">
-        <input id="modeUpload" type="radio" name="inputMode" class="form-radio" checked>
+        <input id="modeUpload" type="radio" name="inputMode" class="form-radio h-4 w-4 text-indigo-600" checked>
         <span class="ml-2 text-sm">Upload CSVs</span>
       </label>
       <label class="inline-flex items-center">
-        <input id="modeManual" type="radio" name="inputMode" class="form-radio">
+        <input id="modeManual" type="radio" name="inputMode" class="form-radio h-4 w-4 text-indigo-600">
         <span class="ml-2 text-sm">Enter data manually</span>
       </label>
       <div class="text-xs text-gray-500 ml-4">If you don't have CSV files, choose “Enter data manually”.</div>
     </div>
 
-    <!-- MANUAL ENTRY AREA (hidden by default) -->
-    <div id="manualArea" class="mb-4 hidden border rounded p-3 bg-gray-50">
+    <div id="manualArea" class="mb-4 hidden bg-white rounded-lg p-4">
       <div class="mb-3">
         <h3 class="font-medium">Courses</h3>
         <table id="coursesTable" class="w-full text-sm border-collapse">
-          <thead>
-            <tr class="bg-gray-100">
-              <th class="p-1 border">Code</th>
-              <th class="p-1 border">Title</th>
-              <th class="p-1 border">Weekly Hours</th>
-              <th class="p-1 border">Action</th>
+          <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+            <tr>
+              <th class="p-2 border">Code</th>
+              <th class="p-2 border">Title</th>
+              <th class="p-2 border">Weekly Hours</th>
+              <th class="p-2 border">Action</th>
             </tr>
           </thead>
           <tbody></tbody>
         </table>
-        <button id="addCourse" type="button" class="mt-2 px-2 py-1 bg-blue-500 text-white text-sm rounded">+ Add
-          course</button>
+        <button id="addCourse" type="button" class="mt-2 px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-sm rounded">+ Add course</button>
       </div>
 
       <div class="mb-3">
         <h3 class="font-medium">Faculty</h3>
-        <p class="text-xs text-gray-500 mb-1">Enter faculty initials (for shorthand) and full name. IDs will be
-          generated automatically when sending to the server.</p>
+        <p class="text-xs text-gray-500 mb-1">Enter faculty initials (shorthand) and full name. IDs are generated for server.</p>
         <table id="facultyTable" class="w-full text-sm border-collapse">
-          <thead>
-            <tr class="bg-gray-100">
-              <th class="p-1 border">Initials</th>
-              <th class="p-1 border">Full Name</th>
-              <th class="p-1 border">Can Teach (comma-separated codes)</th>
-              <th class="p-1 border">Action</th>
+          <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+            <tr>
+              <th class="p-2 border">Initials</th>
+              <th class="p-2 border">Full Name</th>
+              <th class="p-2 border">Can Teach (comma-separated codes)</th>
+              <th class="p-2 border">Action</th>
             </tr>
           </thead>
           <tbody></tbody>
         </table>
-        <button id="addFaculty" type="button" class="mt-2 px-2 py-1 bg-blue-500 text-white text-sm rounded">+ Add
-          faculty</button>
+        <button id="addFaculty" type="button" class="mt-2 px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-sm rounded">+ Add faculty</button>
       </div>
 
       <div>
         <h3 class="font-medium">Slots / Timetable Row</h3>
-        <p class="text-xs text-gray-500 mb-1">
-          Add the day's time blocks. Mark each row as <strong>Class</strong>, <em>Break</em>, <em>Lunch</em>, or
-          <em>Holiday</em>.
-          Only rows with type <strong>Class</strong> will be used as assignable slots. Use times like
-          <code>09:00</code>, <code>10:30</code>.
-        </p>
-
+        <p class="text-xs text-gray-500 mb-1">Add the day's time blocks. Mark each row as <strong>Class</strong>, <em>Break</em>, <em>Lunch</em>, or <em>Holiday</em>. Only rows with type <strong>Class</strong> will be used as assignable slots.</p>
         <table id="slotsTable" class="w-full text-sm border-collapse">
-          <thead>
-            <tr class="bg-gray-100">
-              <th class="p-1 border">Day</th>
-              <th class="p-1 border">Start Time</th>
-              <th class="p-1 border">End Time</th>
-              <th class="p-1 border">Type</th>
-              <th class="p-1 border">Action</th>
+          <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+            <tr>
+              <th class="p-2 border">Day</th>
+              <th class="p-2 border">Start Time</th>
+              <th class="p-2 border">End Time</th>
+              <th class="p-2 border">Type</th>
+              <th class="p-2 border">Action</th>
             </tr>
           </thead>
           <tbody></tbody>
         </table>
 
         <div class="mt-2 flex gap-2">
-          <button id="addSlot" type="button" class="px-2 py-1 bg-blue-500 text-white text-sm rounded">+ Add slot
-            row</button>
-          <button id="addCommonDay" type="button" class="px-2 py-1 bg-gray-200 text-sm rounded">+ Add common weekday
-            slots</button>
+          <button id="addSlot" type="button" class="px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-sm rounded">+ Add slot row</button>
+          <button id="addCommonDay" type="button" class="ml-2 px-3 py-2 bg-gray-100 rounded-lg">+ Add common weekday slots</button>
         </div>
 
-        <p class="text-xs text-gray-500 mt-2">
-          Tip: use <strong>+ Add common weekday slots</strong> to add a set of typical morning class rows for quick
-          entry (you can edit them afterwards).
-        </p>
+        <p class="text-xs text-gray-500 mt-2">Tip: use <strong>+ Add common weekday slots</strong> to build a template for a day and copy to other weekdays.</p>
       </div>
     </div>
 
-    <form id="uploadForm" class="space-y-3">
-      <div>
-        <label for="courses" class="block text-sm font-medium">Courses CSV (required)</label>
-        <input id="courses" type="file" accept=".csv" class="mt-1 block w-full" />
+    <form id="uploadForm" class="space-y-4">
+      <div class="flex items-center space-x-4">
+        <label for="courses" class="flex-shrink-0 px-2 py-1 text-sm font-medium text-white bg-indigo-600 rounded-lg cursor-pointer hover:bg-indigo-700">Choose Courses CSV</label>
+        <input id="courses" type="file" accept=".csv" class="hidden" />
+        <span id="courses-filename" class="text-sm text-gray-500 truncate">No file chosen</span>
       </div>
 
-      <div>
-        <label for="faculty" class="block text-sm font-medium">Faculty CSV (required)</label>
-        <input id="faculty" type="file" accept=".csv" class="mt-1 block w-full" />
+      <div class="flex items-center space-x-4">
+        <label for="faculty" class="flex-shrink-0 px-2 py-1 text-sm font-medium text-white bg-indigo-600 rounded-lg cursor-pointer hover:bg-indigo-700">Choose Faculty CSV</label>
+        <input id="faculty" type="file" accept=".csv" class="hidden" />
+        <span id="faculty-filename" class="text-sm text-gray-500 truncate">No file chosen</span>
       </div>
 
-      <div>
-        <label for="slots" class="block text-sm font-medium">Slots CSV (required)</label>
-        <input id="slots" type="file" accept=".csv" class="mt-1 block w-full" />
+      <div class="flex items-center space-x-4">
+        <label for="slots" class="flex-shrink-0 px-2 py-1 text-sm font-medium text-white bg-indigo-600 rounded-lg cursor-pointer hover:bg-indigo-700">Choose Slots CSV</label>
+        <input id="slots" type="file" accept=".csv" class="hidden" />
+        <span id="slots-filename" class="text-sm text-gray-500 truncate">No file chosen</span>
       </div>
     </form>
 
-    <!-- Controls (always visible regardless of mode) -->
     <div id="controls" class="mb-4">
       <div class="pt-3">
-        <button id="generateBtn" type="button" class="px-4 py-2 bg-indigo-600 text-white rounded">Generate
-          Timetable</button>
-        <button id="sampleBtn" type="button" class="ml-2 px-3 py-2 bg-gray-100 rounded">Fill Sample Data</button>
+        <button id="generateBtn" type="button" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg">Generate Timetable</button>
+        <button id="sampleBtn" type="button" class="ml-2 px-3 py-2 bg-gray-100 rounded-lg">Fill Sample Data</button>
       </div>
     </div>
 
-    <hr class="my-6">
+    <hr>
 
     <div id="output" class="space-y-4 hidden">
       <h2 class="text-lg font-medium">Generated Timetable</h2>
-      <div id="timetableContainer" class="overflow-auto border rounded p-2 bg-gray-50"></div>
+      <div id="timetableContainer" class="overflow-auto border rounded-lg p-2 bg-gray-50">
+      </div>
       <div>
-        <button id="downloadCsv" class="px-3 py-2 bg-amber-500 text-white rounded">Download CSV</button>
-        <button id="downloadImage" class="ml-2 px-3 py-2 bg-green-600 text-white rounded">Download Image</button>
-        <button id="startNew" class="ml-2 px-3 py-2 bg-gray-200 rounded">Start New</button>
+        <button id="downloadCsv" class="px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg">Download CSV</button>
+        <button id="downloadImage" class="ml-2 px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg">Download Image</button>
+        <button id="startNew" class="ml-2 px-3 py-2 bg-gray-200 rounded-lg">Start New</button>
       </div>
     </div>
   </div>
 
+  <div id="modalRoot"></div>
+
   <script src="./config.js"></script>
-  <script>
-    // ========== CONFIG ==========
-    const API_BASE = window.__ENV?.API_BASE || 'http://127.0.0.1:8000';
-
-    // ========== HELPERS ==========
-    const el = id => document.getElementById(id);
-
-    function fileFromString(text, filename) {
-      const blob = new Blob([text], { type: 'text/csv' });
-      const file = new File([blob], filename, { type: 'text/csv' });
-      // create a DataTransfer to assign to input.files
-      const dt = new DataTransfer();
-      dt.items.add(file);
-      return dt.files;
-    }
-
-    function setStatus(msg, isError = false, showSpinner = false) {
-      el('status').innerText = msg;
-      el('status').style.color = isError ? 'crimson' : '';
-      if (showSpinner) {
-        el('spinner').classList.remove('hidden');
-      } else {
-        el('spinner').classList.add('hidden');
-      }
-    }
-
-    // ========== MANUAL-ENTRY UI LOGIC ==========
-    function showManualMode(enabled) {
-      const manualArea = el('manualArea');
-      const uploadForm = el('uploadForm');
-      if (enabled) {
-        manualArea.classList.remove('hidden');
-        uploadForm.classList.add('hidden');
-      } else {
-        manualArea.classList.add('hidden');
-        uploadForm.classList.remove('hidden');
-      }
-    }
-
-    // table helpers
-    function createCell(html) {
-      const td = document.createElement('td');
-      td.className = 'p-1 border';
-      td.innerHTML = html;
-      return td;
-    }
-
-// Courses row
-function addCourseRow(code = '', title = '', hours = '') {
-  const tbody = el('coursesTable').querySelector('tbody');
-  const tr = document.createElement('tr');
-
-  const idCode = 'course-code-' + Date.now() + '-' + Math.floor(Math.random()*1000);
-  const idTitle = 'course-title-' + Date.now() + '-' + Math.floor(Math.random()*1000);
-  const idHours = 'course-hours-' + Date.now() + '-' + Math.floor(Math.random()*1000);
-
-  tr.appendChild(createCell(`<input id="${idCode}" aria-label="Course code" placeholder="CS101" class="w-full text-sm p-1" value="${code}">`));
-  tr.appendChild(createCell(`<input id="${idTitle}" aria-label="Course title" placeholder="Data Structures" class="w-full text-sm p-1" value="${title}">`));
-  tr.appendChild(createCell(`<input id="${idHours}" aria-label="Weekly hours" placeholder="1" class="w-full text-sm p-1" type="number" min="1" value="${hours || 1}">`));
-  tr.appendChild(createCell(`<button type="button" class="remove-row text-sm px-2 py-1 bg-red-500 text-white rounded">Remove</button>`));
-  tbody.appendChild(tr);
-}
-
-// Faculty row (initials + full name)
-function addFacultyRow(initials = '', fullname = '', can_teach = '') {
-  const tbody = el('facultyTable').querySelector('tbody');
-  const tr = document.createElement('tr');
-
-  const idInitials = 'fac-initials-' + Date.now() + '-' + Math.floor(Math.random()*1000);
-  const idFull = 'fac-name-' + Date.now() + '-' + Math.floor(Math.random()*1000);
-  const idCan = 'fac-can-' + Date.now() + '-' + Math.floor(Math.random()*1000);
-
-  tr.appendChild(createCell(`<input id="${idInitials}" aria-label="Faculty initials" placeholder="PR" class="w-full text-sm p-1" value="${initials}">`));
-  tr.appendChild(createCell(`<input id="${idFull}" aria-label="Faculty full name" placeholder="Prof Rao" class="w-full text-sm p-1" value="${fullname}">`));
-  tr.appendChild(createCell(`<input id="${idCan}" aria-label="Can teach (comma-separated codes)" placeholder="CS101,CS102" class="w-full text-sm p-1" value="${can_teach}">`));
-  tr.appendChild(createCell(`<button type="button" class="remove-row text-sm px-2 py-1 bg-red-500 text-white rounded">Remove</button>`));
-  tbody.appendChild(tr);
-}
-
-// Slot row: day, start, end, type
-function addSlotRow(id = '', day = '', start_time = '', end_time = '', type = 'Class') {
-  const tbody = el('slotsTable').querySelector('tbody');
-  const tr = document.createElement('tr');
-
-  const idDay = 'slot-day-' + Date.now() + '-' + Math.floor(Math.random()*1000);
-  const idStart = 'slot-start-' + Date.now() + '-' + Math.floor(Math.random()*1000);
-  const idEnd = 'slot-end-' + Date.now() + '-' + Math.floor(Math.random()*1000);
-  const idType = 'slot-type-' + Date.now() + '-' + Math.floor(Math.random()*1000);
-
-  tr.appendChild(createCell(`<input id="${idDay}" aria-label="Day" placeholder="Mon" class="w-full text-sm p-1" value="${day}">`));
-  tr.appendChild(createCell(`<input id="${idStart}" aria-label="Start time" placeholder="09:00" class="w-full text-sm p-1" value="${start_time}">`));
-  tr.appendChild(createCell(`<input id="${idEnd}" aria-label="End time" placeholder="10:00" class="w-full text-sm p-1" value="${end_time}">`));
-  tr.appendChild(createCell(`<select id="${idType}" aria-label="Slot type" class="w-full text-sm p-1">
-    <option ${type === 'Class' ? 'selected' : ''}>Class</option>
-    <option ${type === 'Break' ? 'selected' : ''}>Break</option>
-    <option ${type === 'Lunch' ? 'selected' : ''}>Lunch</option>
-    <option ${type === 'Holiday' ? 'selected' : ''}>Holiday</option>
-  </select>`));
-  tr.appendChild(createCell(`<button type="button" class="remove-row text-sm px-2 py-1 bg-red-500 text-white rounded">Remove</button>`));
-  tbody.appendChild(tr);
-}
-
-
-    // Row removal using event delegation
-    document.addEventListener('click', (ev) => {
-      if (ev.target && ev.target.classList.contains('remove-row')) {
-        const tr = ev.target.closest('tr');
-        if (tr) tr.remove();
-      }
-    });
-
-    // ========== MAIN DOM READY / EVENT WIRING ==========
-    document.addEventListener('DOMContentLoaded', () => {
-      // Populate initial rows & add-row buttons
-      el('addCourse').addEventListener('click', () => addCourseRow());
-      el('addFaculty').addEventListener('click', () => addFacultyRow());
-      el('addSlot').addEventListener('click', () => addSlotRow());
-      el('addCommonDay').addEventListener('click', () => {
-        const day = prompt('Enter day (Mon/Tue/Wed/Thu/Fri). Default: Mon', 'Mon') || 'Mon';
-        addSlotRow('', day, '09:00', '10:00', 'Class');
-        addSlotRow('', day, '10:00', '11:00', 'Class');
-        addSlotRow('', day, '11:00', '11:30', 'Break');
-        addSlotRow('', day, '11:30', '12:30', 'Class');
-        setStatus('Common slots added for ' + day);
-      });
-
-      // initialize with one row each for convenience if empty
-      if (el('coursesTable').querySelector('tbody').children.length === 0) addCourseRow();
-      if (el('facultyTable').querySelector('tbody').children.length === 0) addFacultyRow();
-      if (el('slotsTable').querySelector('tbody').children.length === 0) addSlotRow();
-
-      // MODE radio buttons
-      const modeUploadEl = el('modeUpload');
-      const modeManualEl = el('modeManual');
-      if (modeUploadEl && modeManualEl) {
-        modeUploadEl.addEventListener('change', (e) => {
-          if (e.target.checked) showManualMode(false);
-        });
-        modeManualEl.addEventListener('change', (e) => {
-          if (e.target.checked) showManualMode(true);
-        });
-      }
-
-      // SAMPLE button
-      const sampleBtn = el('sampleBtn');
-      if (sampleBtn) {
-        sampleBtn.addEventListener('click', () => {
-          try {
-            const coursesCsv = "code,title,weekly_hours\nCS101,Data Structures,3\nCS102,Database Systems,3\nCS103,Operating Systems,3\n";
-            const facultyCsvManual = "initials,name,can_teach\nPR,Prof Rao,CS101|CS103\nPP,Prof Patil,CS102\n";
-            const slotsCsvManual = "day,start_time,end_time,type\nMon,09:00,10:00,Class\nMon,10:00,11:00,Class\nMon,11:00,11:30,Break\nMon,11:30,12:30,Class\nTue,09:00,10:00,Class\nTue,10:00,11:00,Class\n";
-
-            if (el('modeManual').checked) {
-              el('coursesTable').querySelector('tbody').innerHTML = '';
-              el('facultyTable').querySelector('tbody').innerHTML = '';
-              el('slotsTable').querySelector('tbody').innerHTML = '';
-
-              coursesCsv.split('\n').slice(1).filter(Boolean).forEach(line => {
-                const parts = line.split(',');
-                addCourseRow(parts[0]?.trim(), parts[1]?.trim(), parts[2]?.trim());
-              });
-
-              facultyCsvManual.split('\n').slice(1).filter(Boolean).forEach(line => {
-                const parts = line.split(',');
-                addFacultyRow(parts[0]?.trim(), parts[1]?.trim(), (parts[2] || '').replace(/\|/g, ','));
-              });
-
-              slotsCsvManual.split('\n').slice(1).filter(Boolean).forEach(line => {
-                const parts = line.split(',');
-                addSlotRow('', parts[0]?.trim(), parts[1]?.trim(), parts[2]?.trim(), parts[3]?.trim());
-              });
-
-              setStatus('Sample manual data loaded. Edit if needed and click Generate.');
-              return;
-            }
-
-            // upload mode:
-            const faculty = "id,name,can_teach\nf1,Prof Rao,CS101|CS103\nf2,Prof Patil,CS102\n";
-            const slots = "id,day,slot_index\nmon-0,Mon,0\nmon-1,Mon,1\ntue-0,Tue,0\ntue-1,Tue,1\nwed-0,Wed,0\nwed-1,Wed,1\n";
-            el('courses').files = fileFromString(coursesCsv, 'courses.csv');
-            el('faculty').files = fileFromString(faculty, 'faculty.csv');
-            el('slots').files = fileFromString(slots, 'slots.csv');
-            setStatus('Sample data loaded in inputs. Click Generate.');
-          } catch (err) {
-            console.error('Sample button error', err);
-            setStatus('Error preparing sample data: ' + (err && err.message), true, false);
-          }
-        });
-      }
-
-      // GENERATE button (wrapped with try/catch)
-      const generateBtn = el('generateBtn');
-      if (generateBtn) {
-        generateBtn.addEventListener('click', async () => {
-          try {
-            setStatus('Validating input...', false, false);
-
-            const manualMode = el('modeManual').checked;
-
-            function stringToFile(content, filename = 'file.csv') {
-              const blob = new Blob([content], { type: 'text/csv' });
-              try {
-                return new File([blob], filename, { type: 'text/csv' });
-              } catch (e) {
-                const dt = new DataTransfer();
-                dt.items.add(new File([blob], filename, { type: 'text/csv' }));
-                return dt.files[0];
-              }
-            }
-
-            function serializeCourses() {
-              const rows = Array.from(el('coursesTable').querySelectorAll('tbody tr'));
-              if (rows.length === 0) return null;
-              const lines = ['code,title,weekly_hours'];
-              for (const r of rows) {
-                const inputs = r.querySelectorAll('input');
-                const code = (inputs[0]?.value || '').trim();
-                const title = (inputs[1]?.value || '').trim();
-                const hours = (inputs[2]?.value || '1').trim();
-                if (!code) continue;
-                lines.push(`${code.replace(/,/g, '')},${title.replace(/,/g, '')},${hours}`);
-              }
-              return lines.join('\n');
-            }
-
-            function serializeFaculty() {
-              const rows = Array.from(el('facultyTable').querySelectorAll('tbody tr'));
-              if (rows.length === 0) return null;
-              const lines = ['id,name,can_teach'];
-              let idx = 1;
-              for (const r of rows) {
-                const inputs = r.querySelectorAll('input');
-                const initials = (inputs[0]?.value || '').trim();
-                const name = (inputs[1]?.value || '').trim();
-                const canTeachRaw = (inputs[2]?.value || '').trim();
-                const canTeach = canTeachRaw.split(',').map(s => s.trim()).filter(Boolean).join('|');
-                if (!initials && !name) continue;
-                let id = initials ? initials.replace(/\s+/g, '_') : `f${idx}`;
-                id = id.toLowerCase();
-                id = id.replace(/,/g, '');
-                lines.push(`${id},${name.replace(/,/g, '')},${canTeach}`);
-                idx++;
-              }
-              return lines.join('\n');
-            }
-
-            function serializeSlots() {
-              const rows = Array.from(el('slotsTable').querySelectorAll('tbody tr'));
-              if (rows.length === 0) return null;
-              const lines = ['id,day,slot_index'];
-              const dayGroups = {};
-              for (const r of rows) {
-                const inputs = r.querySelectorAll('input, select');
-                const day = (inputs[0]?.value || '').trim();
-                const start = (inputs[1]?.value || '').trim();
-                const end = (inputs[2]?.value || '').trim();
-                const type = (inputs[3]?.value || 'Class').trim();
-                if (!day) continue;
-                if (!(day in dayGroups)) dayGroups[day] = [];
-                dayGroups[day].push({ start, end, type });
-              }
-              for (const day of Object.keys(dayGroups)) {
-                let idx = 0;
-                for (const block of dayGroups[day]) {
-                  if (block.type === 'Class') {
-                    const slotId = `${day.toLowerCase()}-${idx}`;
-                    lines.push(`${slotId},${day},${idx}`);
-                    idx++;
-                  }
-                }
-              }
-              return lines.join('\n');
-            }
-
-            setStatus('Preparing data...', false, true);
-            generateBtn.disabled = true;
-
-            const fd = new FormData();
-
-            if (manualMode) {
-              const coursesCsv = serializeCourses();
-              const facultyCsv = serializeFaculty();
-              const slotsCsv = serializeSlots();
-
-              if (!coursesCsv || !facultyCsv || !slotsCsv) {
-                setStatus('Please fill at least one row in each manual table.', true, false);
-                generateBtn.disabled = false;
-                return;
-              }
-
-              fd.append('courses', stringToFile(coursesCsv, 'courses.csv'));
-              fd.append('faculty', stringToFile(facultyCsv, 'faculty.csv'));
-              fd.append('slots', stringToFile(slotsCsv, 'slots.csv'));
-            } else {
-              const courses = el('courses').files[0];
-              const faculty = el('faculty').files[0];
-              const slots = el('slots').files[0];
-
-              if (!courses || !faculty || !slots) {
-                setStatus('Please attach all three CSV files (courses, faculty, slots) or switch to manual entry.', true, false);
-                generateBtn.disabled = false;
-                return;
-              }
-
-              fd.append('courses', courses);
-              fd.append('faculty', faculty);
-              fd.append('slots', slots);
-            }
-
-            setStatus('Uploading & generating timetable — please wait...', false, true);
-
-            const res = await fetch(API_BASE + '/generate', { method: 'POST', body: fd });
-            if (!res.ok) {
-              const errText = await res.text().catch(() => null);
-              let err = null;
-              try { err = JSON.parse(errText); } catch (e) { err = null; }
-              setStatus('Server error: ' + (err?.detail || err?.error || res.status), true, false);
-              generateBtn.disabled = false;
-              return;
-            }
-
-            const data = await res.json();
-            setStatus('Timetable generated.', false, false);
-            renderTimetable(data.assignments || []);
-            generateBtn.disabled = false;
-          } catch (err) {
-            console.error('Generate handler error', err);
-            setStatus('Error during generation: ' + (err && err.message), true, false);
-            try { generateBtn.disabled = false; } catch (e) {}
-          }
-        });
-      }
-
-      // image download & other finishing listeners
-      const downloadImageBtn = el('downloadImage');
-      if (downloadImageBtn) {
-        downloadImageBtn.addEventListener('click', () => {
-          const filename = 'timetable_' + new Date().toISOString().replace(/[:.]/g, '-') + '.png';
-          downloadTimetableImage(filename);
-        });
-      }
-    });
-
-    // ========== RENDER / DOWNLOAD / IMAGE ==========
-    // Render timetable grid (simple)
-    function renderTimetable(assignments) {
-      el('output').classList.remove('hidden');
-      const container = el('timetableContainer');
-      if (!assignments || assignments.length === 0) {
-        container.innerHTML = '<div class="text-sm text-gray-500">No assignments returned.</div>';
-        return;
-      }
-
-      // build day list and max slot
-      const days = [...new Set(assignments.map(a => a.day))].sort();
-      const maxSlot = Math.max(...assignments.map(a => a.slot_index));
-
-      let html = '<table class="min-w-full text-sm">';
-      html += '<thead><tr><th class="p-1 border">Slot\\Day</th>';
-      for (const d of days) html += `<th class="p-1 border">${d}</th>`;
-      html += '</tr></thead><tbody>';
-
-      for (let s = 0; s <= maxSlot; s++) {
-        html += `<tr><td class="p-1 border font-medium">Slot ${s + 1}</td>`;
-        for (const d of days) {
-          const cell = assignments.find(a => a.day === d && a.slot_index === s);
-          if (cell) {
-            html += `<td class="p-1 border slot-cell">
-            <div class="font-semibold">${cell.course}</div>
-            <div class="text-xs text-gray-600">${cell.faculty}</div>
-          </td>`;
-          } else {
-            html += `<td class="p-1 border text-gray-400">—</td>`;
-          }
-        }
-        html += '</tr>';
-      }
-      html += '</tbody></table>';
-
-      container.innerHTML = html;
-
-      // Prepare CSV download
-      el('downloadCsv').onclick = () => downloadCsv(assignments);
-      el('startNew').onclick = () => window.location.reload();
-    }
-
-    // CSV download helper
-    function downloadCsv(assignments) {
-      const header = ['day', 'slot_index', 'course', 'faculty'];
-      const rows = assignments.map(a => [a.day, a.slot_index, a.course, a.faculty].join(','));
-      const csv = [header.join(','), ...rows].join('\n');
-      const blob = new Blob([csv], { type: 'text/csv' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'timetable.csv';
-      a.click();
-      URL.revokeObjectURL(url);
-    }
-
-    // Download timetable as PNG using html2canvas
-    async function downloadTimetableImage(filename = 'timetable.png') {
-      const container = document.getElementById('timetableContainer');
-      if (!container) {
-        setStatus('No timetable to capture', true, false);
-        return;
-      }
-
-      const prevOverflow = container.style.overflow;
-      container.style.overflow = 'visible';
-
-      const scale = 2; // higher = sharper image
-
-      try {
-        setStatus('Preparing image...', false, true);
-        const canvas = await html2canvas(container, {
-          scale: scale,
-          useCORS: true,
-          backgroundColor: '#ffffff' // white background
-        });
-
-        canvas.toBlob((blob) => {
-          if (!blob) {
-            setStatus('Failed to create image', true, false);
-            return;
-          }
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = filename;
-          document.body.appendChild(a);
-          a.click();
-          a.remove();
-          URL.revokeObjectURL(url);
-          setStatus('Image downloaded.', false, false);
-        }, 'image/png');
-      } catch (err) {
-        console.error('Capture error:', err);
-        setStatus('Error capturing image: ' + err.message, true, false);
-      } finally {
-        container.style.overflow = prevOverflow;
-      }
-    }
-    // =====================================================
-  </script>
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+  <script src="./src/main.js" defer></script>
 </body>
 
 </html>
