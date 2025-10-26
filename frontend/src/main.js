@@ -68,10 +68,10 @@ function showManualMode(enabled) {
 function addCourseRow(code = '', title = '', hours = '') {
   const tbody = el('coursesTable').querySelector('tbody');
   const tr = document.createElement('tr');
-  tr.className = 'bg-white dark:bg-gray-800 border-b dark:border-gray-700'
-  tr.appendChild(createCell(`<input aria-label="Course code" placeholder="CS101" class="w-full text-sm p-1 bg-gray-50 border border-gray-300 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white rounded-md" value="${code}">`));
-  tr.appendChild(createCell(`<input aria-label="Course title" placeholder="Data Structures" class="w-full text-sm p-1 bg-gray-50 border border-gray-300 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white rounded-md" value="${title}">`));
-  tr.appendChild(createCell(`<input aria-label="Weekly hours" placeholder="1" class="w-full text-sm p-1 bg-gray-50 border border-gray-300 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white rounded-md" type="number" min="1" value="${hours || 1}">`));
+  tr.className = 'bg-white border-b';
+  tr.appendChild(createCell(`<input aria-label="Course code" placeholder="CS101" class="w-full text-sm p-1 bg-gray-50 border border-gray-300 rounded-md" value="${code}">`));
+  tr.appendChild(createCell(`<input aria-label="Course title" placeholder="Data Structures" class="w-full text-sm p-1 bg-gray-50 border border-gray-300 rounded-md" value="${title}">`));
+  tr.appendChild(createCell(`<input aria-label="Weekly hours" placeholder="1" class="w-full text-sm p-1 bg-gray-50 border border-gray-300 rounded-md" type="number" min="1" value="${hours || 1}">`));
   tr.appendChild(createCell(`<button type="button" class="remove-row text-sm px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded">Remove</button>`));
   tbody.appendChild(tr);
 
@@ -80,14 +80,15 @@ function addCourseRow(code = '', title = '', hours = '') {
   });
   realtimeValidate();
 }
+
 
 function addFacultyRow(initials = '', fullname = '', can_teach = '') {
   const tbody = el('facultyTable').querySelector('tbody');
   const tr = document.createElement('tr');
-  tr.className = 'bg-white dark:bg-gray-800 border-b dark:border-gray-700'
-  tr.appendChild(createCell(`<input aria-label="Faculty initials" placeholder="PR" class="w-full text-sm p-1 bg-gray-50 border border-gray-300 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white rounded-md" value="${initials}">`));
-  tr.appendChild(createCell(`<input aria-label="Faculty full name" placeholder="Prof Rao" class="w-full text-sm p-1 bg-gray-50 border border-gray-300 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white rounded-md" value="${fullname}">`));
-  tr.appendChild(createCell(`<input aria-label="Can teach (comma-separated codes)" placeholder="CS101,CS102" class="w-full text-sm p-1 bg-gray-50 border border-gray-300 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white rounded-md" value="${can_teach}">`));
+  tr.className = 'bg-white border-b';
+  tr.appendChild(createCell(`<input aria-label="Faculty initials" placeholder="PR" class="w-full text-sm p-1 bg-gray-50 border border-gray-300 rounded-md" value="${initials}">`));
+  tr.appendChild(createCell(`<input aria-label="Faculty full name" placeholder="Prof Rao" class="w-full text-sm p-1 bg-gray-50 border border-gray-300 rounded-md" value="${fullname}">`));
+  tr.appendChild(createCell(`<input aria-label="Can teach (comma-separated codes)" placeholder="CS101,CS102" class="w-full text-sm p-1 bg-gray-50 border border-gray-300 rounded-md" value="${can_teach}">`));
   tr.appendChild(createCell(`<button type="button" class="remove-row text-sm px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded">Remove</button>`));
   tbody.appendChild(tr);
 
@@ -97,15 +98,16 @@ function addFacultyRow(initials = '', fullname = '', can_teach = '') {
   realtimeValidate();
 }
 
+
 function addSlotRow(id = '', day = '', start_time = '', end_time = '', type = 'Class') {
   const tbody = el('slotsTable').querySelector('tbody');
   const tr = document.createElement('tr');
-  tr.className = 'bg-white dark:bg-gray-800'
+  tr.className = 'bg-white';
 
-  tr.appendChild(createCell(`<input aria-label="Day" placeholder="Mon" class="w-full text-sm p-1 bg-gray-50 border border-gray-300 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white rounded-md slot-day" value="${day}">`));
-  tr.appendChild(createCell(`<input aria-label="Start time" type="time" class="w-full text-sm p-1 bg-gray-50 border border-gray-300 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white rounded-md slot-start" value="${start_time}">`));
-  tr.appendChild(createCell(`<input aria-label="End time" type="time" class="w-full text-sm p-1 bg-gray-50 border border-gray-300 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white rounded-md slot-end" value="${end_time}">`));
-  tr.appendChild(createCell(`<select aria-label="Slot type" class="w-full text-sm p-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md slot-type">
+  tr.appendChild(createCell(`<input aria-label="Day" placeholder="Mon" class="w-full text-sm p-1 bg-gray-50 border border-gray-300 rounded-md slot-day" value="${day}">`));
+  tr.appendChild(createCell(`<input aria-label="Start time" type="time" class="w-full text-sm p-1 bg-gray-50 border border-gray-300 rounded-md slot-start" value="${start_time}">`));
+  tr.appendChild(createCell(`<input aria-label="End time" type="time" class="w-full text-sm p-1 bg-gray-50 border border-gray-300 rounded-md slot-end" value="${end_time}">`));
+  tr.appendChild(createCell(`<select aria-label="Slot type" class="w-full text-sm p-1 bg-white border border-gray-300 rounded-md slot-type">
     <option ${type === 'Class' ? 'selected' : ''}>Class</option>
     <option ${type === 'Break' ? 'selected' : ''}>Break</option>
     <option ${type === 'Lunch' ? 'selected' : ''}>Lunch</option>
@@ -129,12 +131,13 @@ function addSlotRow(id = '', day = '', start_time = '', end_time = '', type = 'C
   realtimeValidate();
 }
 
+
 // ---------- Delegated click handling ---------- 
 document.addEventListener('click', (ev) => {
   if (ev.target && ev.target.classList.contains('remove-row')) {
     const tr = ev.target.closest('tr');
-    if (tr) { 
-      tr.remove(); 
+    if (tr) {
+      tr.remove();
       updateAllMarkButtons();
       realtimeValidate();
     }
@@ -380,7 +383,7 @@ document.addEventListener('DOMContentLoaded', () => {
       coursesInput.files = fileFromString(coursesCsv, 'courses.csv');
       facultyInput.files = fileFromString(faculty, 'faculty.csv');
       slotsInput.files = fileFromString(slots, 'slots.csv');
-      
+
       // Manually trigger change event to update filename display
       coursesInput.dispatchEvent(new Event('change'));
       facultyInput.dispatchEvent(new Event('change'));
@@ -410,8 +413,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         function stringToFile(content, filename = 'file.csv') {
           const blob = new Blob([content], { type: 'text/csv' });
-          try { return new File([blob], filename, { type: 'text/csv' }); } 
-          catch (e) { const dt = new DataTransfer(); dt.items.add(new File([blob], filename, { type: 'text/csv' })); return dt.files[0]; } 
+          try { return new File([blob], filename, { type: 'text/csv' }); }
+          catch (e) { const dt = new DataTransfer(); dt.items.add(new File([blob], filename, { type: 'text/csv' })); return dt.files[0]; }
         }
 
         function serializeCourses() {
@@ -515,7 +518,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!res.ok) {
           const errText = await res.text().catch(() => null);
           let err = null;
-          try { err = JSON.parse(errText); } catch (e) { err = null; } 
+          try { err = JSON.parse(errText); } catch (e) { err = null; }
           setStatus('Server error: ' + (err?.detail || err?.error || res.status), true, false);
           generateBtn.disabled = false;
           return;
@@ -528,7 +531,7 @@ document.addEventListener('DOMContentLoaded', () => {
       } catch (err) {
         console.error('Generate handler error', err);
         setStatus('Error during generation: ' + (err && err.message), true, false);
-        try { generateBtn.disabled = false; } catch (e) {}
+        try { generateBtn.disabled = false; } catch (e) { }
       }
     });
   }
@@ -550,13 +553,14 @@ function openCommonDayBuilder() {
   modal.innerHTML = `
     <div class="flex items-center justify-between mb-3">
       <h3 class="text-lg font-semibold">Create common slots for a day</h3>
-      <div><button id="closeCommonDay" class="px-2 py-1 rounded bg-gray-100 dark:bg-gray-600 dark:hover:bg-gray-500 btn-small">Close</button></div>
+      <div><button id="closeCommonDay" class="px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 btn-small">Close</button>
+</div>
     </div>
     <div class="space-y-3">
       <div class="grid grid-cols-2 gap-2">
         <div>
           <label class="text-sm">Template Day (source)</label>
-          <select id="templateDaySelect" class="w-full p-2 border rounded bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600">
+          <select id="templateDaySelect" class="w-full p-2 border rounded bg-white border-gray-300">
             <option>Mon</option><option>Tue</option><option>Wed</option><option>Thu</option><option>Fri</option><option>Sat</option><option>Sun</option>
           </select>
         </div>
@@ -584,14 +588,14 @@ function openCommonDayBuilder() {
         <div id="templateSlots" class="space-y-2 mt-2"></div>
         <div class="mt-2">
           <button id="tplAddSlot" class="px-3 py-1 bg-indigo-600 text-white rounded btn-small">+ Add template slot</button>
-          <button id="tplClear" class="ml-2 px-3 py-1 bg-gray-100 dark:bg-gray-600 dark:hover:bg-gray-500 rounded btn-small">Clear template</button>
+          <button id="tplClear" class="ml-2 px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded btn-small">Clear template</button>
         </div>
-        <div class="text-xs text-gray-500 dark:text-gray-400 mt-2">Use time pickers for start/end. Template entries define slots that will be applied to the selected target days.</div>
+        <div class="text-xs text-gray-500 mt-2">Use time pickers for start/end. Template entries define slots that will be applied to the selected target days.</div>
       </div>
 
       <div class="mt-4 flex justify-end gap-2">
         <button id="tplApply" class="px-4 py-2 bg-indigo-600 text-white rounded">Apply to selected days</button>
-        <button id="tplCancel" class="px-4 py-2 bg-gray-100 dark:bg-gray-600 dark:hover:bg-gray-500 rounded">Cancel</button>
+        <button id="tplCancel" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded">Cancel</button>
       </div>
     </div>
   `;
@@ -602,19 +606,20 @@ function openCommonDayBuilder() {
   function createTemplateSlotRow(start = '09:00', end = '10:00', type = 'Class') {
     const div = document.createElement('div'); div.className = 'flex gap-2 items-center';
     div.innerHTML = `
-      <input type="time" class="tpl-start p-1 border rounded bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600" value="${start}">
-      <input type="time" class="tpl-end p-1 border rounded bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600" value="${end}">
-      <select class="tpl-type p-1 border rounded bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600">
-        <option ${type==='Class'? 'selected':''}>Class</option>
-        <option ${type==='Break'? 'selected':''}>Break</option>
-        <option ${type==='Lunch'? 'selected':''}>Lunch</option>
-        <option ${type==='Holiday'? 'selected':''}>Holiday</option>
-      </select>
-      <button class="tpl-remove px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded btn-small">Remove</button>
-    `;
+    <input type="time" class="tpl-start p-1 border rounded bg-white border-gray-300" value="${start}">
+    <input type="time" class="tpl-end p-1 border rounded bg-white border-gray-300" value="${end}">
+    <select class="tpl-type p-1 border rounded bg-white border-gray-300">
+      <option ${type === 'Class' ? 'selected' : ''}>Class</option>
+      <option ${type === 'Break' ? 'selected' : ''}>Break</option>
+      <option ${type === 'Lunch' ? 'selected' : ''}>Lunch</option>
+      <option ${type === 'Holiday' ? 'selected' : ''}>Holiday</option>
+    </select>
+    <button class="tpl-remove px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded btn-small">Remove</button>
+  `;
     tplSlotsDiv.appendChild(div);
-    div.querySelector('.tpl-remove').addEventListener('click', ()=> { div.remove(); });
+    div.querySelector('.tpl-remove').addEventListener('click', () => { div.remove(); });
   }
+
 
   createTemplateSlotRow();
   modal.querySelector('#closeCommonDay').addEventListener('click', () => { modalRoot.innerHTML = ''; });
@@ -651,31 +656,33 @@ function renderTimetable(assignments) {
   el('output').classList.remove('hidden');
   const container = el('timetableContainer');
   if (!assignments || assignments.length === 0) {
-    container.innerHTML = '<div class="text-sm text-gray-500 dark:text-gray-400">No assignments returned.</div>';
+    container.innerHTML = '<div class="text-sm text-gray-500">No assignments returned.</div>';
+
     return;
   }
   const days = [...new Set(assignments.map(a => a.day))].sort();
   const maxSlot = Math.max(...assignments.map(a => a.slot_index));
-let html = '<table class="timetable-card min-w-full text-sm border-collapse border border-gray-200 dark:border-gray-600">';
-  html += '<thead class="bg-gray-50 dark:bg-gray-700"><tr class="text-left"><th class="p-2 border-b border-gray-200 dark:border-gray-600">Slot\\Day</th>';
-  for (const d of days) html += `<th class="p-2 border-b border-gray-200 dark:border-gray-600">${d}</th>`;
+  let html = '<table class="timetable-card min-w-full text-sm border-collapse border border-gray-200">';
+  html += '<thead class="bg-gray-50"><tr class="text-left"><th class="p-2 border-b border-gray-200">Slot\\Day</th>';
+  for (const d of days) html += `<th class="p-2 border-b border-gray-200">${d}</th>`;
   html += '</tr></thead><tbody>';
   for (let s = 0; s <= maxSlot; s++) {
-    html += `<tr class="border-b border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800"><td class="p-2 font-medium">Slot ${s + 1}</td>`;
+    html += `<tr class="border-b border-gray-200 bg-white"><td class="p-2 font-medium">Slot ${s + 1}</td>`;
     for (const d of days) {
       const cell = assignments.find(a => a.day === d && a.slot_index === s);
       if (cell) {
-        html += `<td class="p-2 border-l border-gray-200 dark:border-gray-600 slot-cell">
-          <div class="font-semibold">${cell.course}</div>
-          <div class="text-xs text-gray-600 dark:text-gray-400">${cell.faculty}</div>
-        </td>`;
+        html += `<td class="p-2 border-l border-gray-200 slot-cell">
+        <div class="font-semibold">${cell.course}</div>
+        <div class="text-xs text-gray-600">${cell.faculty}</div>
+      </td>`;
       } else {
-        html += `<td class="p-2 border-l border-gray-200 dark:border-gray-600 text-gray-400">—</td>`;
+        html += `<td class="p-2 border-l border-gray-200 text-gray-400">—</td>`;
       }
     }
     html += '</tr>';
   }
   html += '</tbody></table>';
+
   container.innerHTML = html;
   el('downloadCsv').onclick = () => downloadCsv(assignments);
   el('startNew').onclick = () => window.location.reload();
@@ -698,9 +705,9 @@ async function downloadTimetableImage(filename = 'timetable.png') {
   const isDark = document.documentElement.classList.contains('dark');
   try {
     setStatus('Preparing image...', false, true);
-    const canvas = await html2canvas(container, { 
-      scale: 2, 
-      useCORS: true, 
+    const canvas = await html2canvas(container, {
+      scale: 2,
+      useCORS: true,
       backgroundColor: isDark ? '#1f2937' : '#ffffff'
     });
     canvas.toBlob((blob) => {
