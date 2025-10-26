@@ -1,7 +1,13 @@
-// ========== CONFIG ========== 
+// main.js
+// Improved frontend to work with backend that returns slot_label/start/end.
+// - renderTimetable now builds a day × time-range grid (uses slot_label/start).
+// - serializeSlots includes start_time and end_time so backend can build labels.
+// - robust sorting of time columns and fallbacks when start/end missing.
+
+// ========== CONFIG ==========
 const API_BASE = window.__ENV?.API_BASE || 'http://127.0.0.1:8000';
 
-// ========== HELPERS ========== 
+// ========== HELPERS ==========
 const el = id => document.getElementById(id);
 function showToast(msg, isError = false) {
   Toastify({
@@ -48,7 +54,7 @@ function handleFileInput(inputId, filenameId) {
   });
 }
 
-// ========== SHOW / HIDE MANUAL AREA ========== 
+// ========== SHOW / HIDE MANUAL AREA ==========
 function showManualMode(enabled) {
   const manualArea = el('manualArea');
   const uploadForm = el('uploadForm');
@@ -64,7 +70,7 @@ function showManualMode(enabled) {
   }
 }
 
-// ---------- Row builders ---------- 
+// ---------- Row builders ----------
 function addCourseRow(code = '', title = '', hours = '') {
   const tbody = el('coursesTable').querySelector('tbody');
   const tr = document.createElement('tr');
@@ -81,7 +87,6 @@ function addCourseRow(code = '', title = '', hours = '') {
   realtimeValidate();
 }
 
-
 function addFacultyRow(initials = '', fullname = '', can_teach = '') {
   const tbody = el('facultyTable').querySelector('tbody');
   const tr = document.createElement('tr');
@@ -97,7 +102,6 @@ function addFacultyRow(initials = '', fullname = '', can_teach = '') {
   });
   realtimeValidate();
 }
-
 
 function addSlotRow(id = '', day = '', start_time = '', end_time = '', type = 'Class') {
   const tbody = el('slotsTable').querySelector('tbody');
@@ -131,8 +135,7 @@ function addSlotRow(id = '', day = '', start_time = '', end_time = '', type = 'C
   realtimeValidate();
 }
 
-
-// ---------- Delegated click handling ---------- 
+// ---------- Delegated click handling ----------
 document.addEventListener('click', (ev) => {
   if (ev.target && ev.target.classList.contains('remove-row')) {
     const tr = ev.target.closest('tr');
@@ -173,7 +176,7 @@ document.addEventListener('click', (ev) => {
   }
 });
 
-// ---------- Holiday helpers ---------- 
+// ---------- Holiday helpers ----------
 function addHolidayForDay(day) {
   const tbody = el('slotsTable').querySelector('tbody');
   Array.from(tbody.querySelectorAll('tr')).forEach(r => {
@@ -312,7 +315,17 @@ function validateManualData() {
   return true;
 }
 
-// ========== MAIN DOM READY / EVENT WIRING ========== 
+// ---------- Utility: parse HH:MM to minutes (for sorting) ----------
+function timeToMinutes(t) {
+  if (!t || typeof t !== 'string') return null;
+  const m = t.match(/^(\d{1,2}):(\d{2})$/);
+  if (!m) return null;
+  const hh = parseInt(m[1], 10);
+  const mm = parseInt(m[2], 10);
+  return hh * 60 + mm;
+}
+
+// ========== MAIN DOM READY / EVENT WIRING ==========
 document.addEventListener('DOMContentLoaded', () => {
   // File input handlers
   handleFileInput('courses', 'courses-filename');
@@ -379,7 +392,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const slotsInput = el('slots');
 
       const faculty = "id,name,can_teach\nf1,Prof Rao,CS101|CS103\nf2,Prof Patil,CS102\n";
-      const slots = "id,day,slot_index\nmon-0,Mon,0\nmon-1,Mon,1\ntue-0,Tue,0\ntue-1,Tue,1\n";
+      const slots = "id,day,slot_index,start_time,end_time\nmon-0,Mon,0,09:00,10:00\nmon-1,Mon,1,10:00,11:00\ntue-0,Tue,0,09:00,10:00\ntue-1,Tue,1,10:00,11:00\n";
       coursesInput.files = fileFromString(coursesCsv, 'courses.csv');
       facultyInput.files = fileFromString(faculty, 'faculty.csv');
       slotsInput.files = fileFromString(slots, 'slots.csv');
@@ -396,7 +409,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // generate button wiring (preserve previous logic)
+  // generate button wiring
   const generateBtn = el('generateBtn');
   if (generateBtn) {
     generateBtn.addEventListener('click', async () => {
@@ -453,10 +466,12 @@ document.addEventListener('DOMContentLoaded', () => {
           return lines.join('\n');
         }
 
+        // NOTE: include start_time and end_time in serialized slots so backend can build slot_label
         function serializeSlots() {
           const rows = Array.from(el('slotsTable').querySelectorAll('tbody tr'));
           if (rows.length === 0) return null;
-          const lines = ['id,day,slot_index'];
+          const lines = ['id,day,slot_index,start_time,end_time,type'];
+          // group by day to produce slot_index sequence per day
           const dayGroups = {};
           for (const r of rows) {
             const inputs = r.querySelectorAll('input, select');
@@ -469,13 +484,19 @@ document.addEventListener('DOMContentLoaded', () => {
             dayGroups[day].push({ start, end, type });
           }
           for (const day of Object.keys(dayGroups)) {
+            // sort day slots by start time if possible so indices are stable
+            const blocks = dayGroups[day];
+            blocks.sort((a, b) => {
+              const ta = timeToMinutes(a.start) ?? 0;
+              const tb = timeToMinutes(b.start) ?? 0;
+              return ta - tb;
+            });
             let idx = 0;
-            for (const block of dayGroups[day]) {
-              if (block.type === 'Class') {
-                const slotId = `${day.toLowerCase()}-${idx}`;
-                lines.push(`${slotId},${day},${idx}`);
-                idx++;
-              }
+            for (const block of blocks) {
+              // only include Class slots as assignable (consistent with backend)
+              const slotId = `${day.toLowerCase()}-${idx}`;
+              lines.push(`${slotId},${day},${idx},${block.start || ''},${block.end || ''},${block.type || 'Class'}`);
+              idx++;
             }
           }
           return lines.join('\n');
@@ -491,7 +512,11 @@ document.addEventListener('DOMContentLoaded', () => {
           const facultyCsv = serializeFaculty();
           const slotsCsv = serializeSlots();
 
-
+          if (!coursesCsv || !facultyCsv || !slotsCsv) {
+            setStatus('Please fill courses, faculty and slots tables before generating.', true, false);
+            generateBtn.disabled = false;
+            return;
+          }
 
           fd.append('courses', stringToFile(coursesCsv, 'courses.csv'));
           fd.append('faculty', stringToFile(facultyCsv, 'faculty.csv'));
@@ -544,7 +569,7 @@ document.addEventListener('DOMContentLoaded', () => {
   updateAllMarkButtons();
 });
 
-// ========== COMMON DAY BUILDER (modal) ========== 
+// ========== COMMON DAY BUILDER (modal) ==========
 function openCommonDayBuilder() {
   const modalRoot = el('modalRoot'); modalRoot.innerHTML = '';
   const backdrop = document.createElement('div'); backdrop.className = 'modal-backdrop';
@@ -553,8 +578,7 @@ function openCommonDayBuilder() {
   modal.innerHTML = `
     <div class="flex items-center justify-between mb-3">
       <h3 class="text-lg font-semibold">Create common slots for a day</h3>
-      <div><button id="closeCommonDay" class="px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 btn-small">Close</button>
-</div>
+      <div><button id="closeCommonDay" class="px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 btn-small">Close</button></div>
     </div>
     <div class="space-y-3">
       <div class="grid grid-cols-2 gap-2">
@@ -606,20 +630,19 @@ function openCommonDayBuilder() {
   function createTemplateSlotRow(start = '09:00', end = '10:00', type = 'Class') {
     const div = document.createElement('div'); div.className = 'flex gap-2 items-center';
     div.innerHTML = `
-    <input type="time" class="tpl-start p-1 border rounded bg-white border-gray-300" value="${start}">
-    <input type="time" class="tpl-end p-1 border rounded bg-white border-gray-300" value="${end}">
-    <select class="tpl-type p-1 border rounded bg-white border-gray-300">
-      <option ${type === 'Class' ? 'selected' : ''}>Class</option>
-      <option ${type === 'Break' ? 'selected' : ''}>Break</option>
-      <option ${type === 'Lunch' ? 'selected' : ''}>Lunch</option>
-      <option ${type === 'Holiday' ? 'selected' : ''}>Holiday</option>
-    </select>
-    <button class="tpl-remove px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded btn-small">Remove</button>
-  `;
+      <input type="time" class="tpl-start p-1 border rounded bg-white border-gray-300" value="${start}">
+      <input type="time" class="tpl-end p-1 border rounded bg-white border-gray-300" value="${end}">
+      <select class="tpl-type p-1 border rounded bg-white border-gray-300">
+        <option ${type === 'Class' ? 'selected' : ''}>Class</option>
+        <option ${type === 'Break' ? 'selected' : ''}>Break</option>
+        <option ${type === 'Lunch' ? 'selected' : ''}>Lunch</option>
+        <option ${type === 'Holiday' ? 'selected' : ''}>Holiday</option>
+      </select>
+      <button class="tpl-remove px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded btn-small">Remove</button>
+    `;
     tplSlotsDiv.appendChild(div);
-    div.querySelector('.tpl-remove').addEventListener('click', () => { div.remove(); });
+    div.querySelector('.tpl-remove').addEventListener('click', ()=> { div.remove(); });
   }
-
 
   createTemplateSlotRow();
   modal.querySelector('#closeCommonDay').addEventListener('click', () => { modalRoot.innerHTML = ''; });
@@ -651,30 +674,84 @@ function openCommonDayBuilder() {
   });
 }
 
-// ========== RENDER / DOWNLOAD / IMAGE ========== 
+// ========== RENDER / DOWNLOAD / IMAGE ==========
+// Renders timetable as day × time-range grid using slot_label / start fields.
+// Expect assignments items to include: day, slot_label, start, end, course, faculty, slot_index
 function renderTimetable(assignments) {
   el('output').classList.remove('hidden');
   const container = el('timetableContainer');
   if (!assignments || assignments.length === 0) {
     container.innerHTML = '<div class="text-sm text-gray-500">No assignments returned.</div>';
-
     return;
   }
-  const days = [...new Set(assignments.map(a => a.day))].sort();
-  const maxSlot = Math.max(...assignments.map(a => a.slot_index));
+
+  // collect unique slot labels keyed by sort key (start time or slot_index fallback)
+  const slotMap = {}; // sortKey -> {label, sortKey}
+  assignments.forEach(a => {
+    const start = a.start || null;
+    const label = a.slot_label || (a.slot_id || (`Slot ${a.slot_index + 1}`));
+    let sortKey = null;
+    if (start) {
+      const mins = timeToMinutes(start);
+      sortKey = (mins !== null) ? String(mins).padStart(5, '0') : null;
+    }
+    if (sortKey === null) {
+      // fallback to slot_index if available (stable)
+      sortKey = (typeof a.slot_index === 'number') ? `I${String(a.slot_index).padStart(5,'0')}` : `Z${label}`;
+    }
+    // ensure uniqueness if same start and label repeat
+    let key = sortKey;
+    let i = 0;
+    while (slotMap[key] && slotMap[key].label !== label) {
+      i++;
+      key = sortKey + '-' + i;
+    }
+    slotMap[key] = { label, sortKey: key, start: a.start };
+  });
+
+  // sort slot keys by numeric part if possible
+  const sortedKeys = Object.keys(slotMap).sort((a, b) => {
+    const na = parseInt(a.split('-')[0].replace(/^I/, ''), 10);
+    const nb = parseInt(b.split('-')[0].replace(/^I/, ''), 10);
+    if (isNaN(na) || isNaN(nb)) return a.localeCompare(b);
+    return na - nb;
+  });
+  const slotLabels = sortedKeys.map(k => slotMap[k].label);
+
+  // days sorted
+  const days = [...new Set(assignments.map(a => a.day))].sort((x,y) => {
+    if (!x) return 1; if (!y) return -1;
+    return x.localeCompare(y);
+  });
+
+  // build lookup: day -> label -> assignment
+  const grid = {};
+  for (const d of days) {
+    grid[d] = {};
+    for (const lbl of slotLabels) grid[d][lbl] = null;
+  }
+  assignments.forEach(a => {
+    const lbl = a.slot_label || a.slot_id || (`Slot ${a.slot_index + 1}`);
+    if (!(a.day in grid)) grid[a.day] = {};
+    grid[a.day][lbl] = a;
+  });
+
+  // build HTML table
   let html = '<table class="timetable-card min-w-full text-sm border-collapse border border-gray-200">';
-  html += '<thead class="bg-gray-50"><tr class="text-left"><th class="p-2 border-b border-gray-200">Slot\\Day</th>';
-  for (const d of days) html += `<th class="p-2 border-b border-gray-200">${d}</th>`;
+  html += '<thead class="bg-gray-50"><tr class="text-left"><th class="p-2 border-b border-gray-200">Day\\Time</th>';
+  for (const lbl of slotLabels) {
+    html += `<th class="p-2 border-b border-gray-200">${lbl}</th>`;
+  }
   html += '</tr></thead><tbody>';
-  for (let s = 0; s <= maxSlot; s++) {
-    html += `<tr class="border-b border-gray-200 bg-white"><td class="p-2 font-medium">Slot ${s + 1}</td>`;
-    for (const d of days) {
-      const cell = assignments.find(a => a.day === d && a.slot_index === s);
+  for (const d of days) {
+    html += `<tr class="border-b border-gray-200 bg-white"><td class="p-2 font-medium">${d}</td>`;
+    for (const lbl of slotLabels) {
+      const cell = grid[d][lbl];
       if (cell) {
         html += `<td class="p-2 border-l border-gray-200 slot-cell">
-        <div class="font-semibold">${cell.course}</div>
-        <div class="text-xs text-gray-600">${cell.faculty}</div>
-      </td>`;
+          <div class="font-semibold">${cell.course}</div>
+          <div class="text-xs text-gray-600">${cell.faculty || ''}</div>
+        </td>`;
       } else {
         html += `<td class="p-2 border-l border-gray-200 text-gray-400">—</td>`;
       }
@@ -689,8 +766,8 @@ function renderTimetable(assignments) {
 }
 
 function downloadCsv(assignments) {
-  const header = ['day', 'slot_index', 'course', 'faculty'];
-  const rows = assignments.map(a => [a.day, a.slot_index, a.course, a.faculty].join(','));
+  const header = ['day', 'slot_index', 'course', 'faculty', 'slot_label', 'start', 'end'];
+  const rows = assignments.map(a => [a.day, a.slot_index, a.course, a.faculty, a.slot_label, a.start, a.end].join(','));
   const csv = [header.join(','), ...rows].join('\n');
   const blob = new Blob([csv], { type: 'text/csv' });
   const url = URL.createObjectURL(blob);
