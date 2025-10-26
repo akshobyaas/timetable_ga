@@ -4,6 +4,7 @@ import pandas as pd
 import math, random
 from fastapi.responses import JSONResponse
 from backend.ga_solver import generate_timetable
+from fastapi.responses import Response
 
 app = FastAPI(title="Timetable GA Backend")
 
@@ -27,6 +28,20 @@ app.add_middleware(
 @app.get("/")
 def home():
     return {"message": "Timetable Generator API is running!"}
+
+
+# add this before your @app.post("/generate") handler
+@app.options("/generate")
+async def generate_options():
+    # return the headers browsers expect for preflight
+    headers = {
+        "Access-Control-Allow-Origin": "https://tt-generator-ga.netlify.app",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept",
+        "Access-Control-Allow-Credentials": "true",
+    }
+    return Response(status_code=200, headers=headers)
+
 
 @app.post("/generate")
 async def generate(
