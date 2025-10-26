@@ -488,12 +488,7 @@ document.addEventListener('DOMContentLoaded', () => {
           const facultyCsv = serializeFaculty();
           const slotsCsv = serializeSlots();
 
-          // This check is now redundant because of validateManualData, but we keep it as a safeguard
-          if (!coursesCsv || !facultyCsv || !slotsCsv) {
-            setStatus('Please fill at least one row in each manual table.', true, false);
-            generateBtn.disabled = false;
-            return;
-          }
+
 
           fd.append('courses', stringToFile(coursesCsv, 'courses.csv'));
           fd.append('faculty', stringToFile(facultyCsv, 'faculty.csv'));

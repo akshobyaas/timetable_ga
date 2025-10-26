@@ -163,17 +163,7 @@ def _fitness_of_individual(individual, choice_faculty_ids, choice_slot_ids):
 # -------------------------
 # Selection / crossover / mutation
 # -------------------------
-def _tournament_select(population, fitnesses, k=TOURNAMENT_K):
-    best = None
-    best_f = None
-    n = len(population)
-    for _ in range(k):
-        idx = random.randrange(n)
-        f = fitnesses[idx]
-        if (best is None) or (f > best_f):
-            best = population[idx]
-            best_f = f
-    return best
+
 
 def _crossover(a, b):
     """Single-point crossover"""
@@ -272,7 +262,7 @@ def generate_timetable(courses_df, faculty_df, slots_df):
             best_ind = population[idx][:]
     if best_fitness >= 100000:
         # perfect found already
-        print("[GA] perfect solution found in initial population")
+        pass
     else:
         # main GA loop
         for gen in range(GENERATIONS):
@@ -293,17 +283,16 @@ def generate_timetable(courses_df, faculty_df, slots_df):
                 no_improve_counter += 1
 
             # occasional log
-            if gen % 20 == 0:
-                print(f"[GA] gen {gen} best_fitness={best_fitness}")
+            pass
 
             # early stop if perfect
             if best_fitness >= 100000:
-                print(f"[GA] generation {gen}: perfect solution found")
+                pass
                 break
 
             # early stop on stagnation
             if no_improve_counter >= NO_IMPROVE_LIMIT:
-                print(f"[GA] stopping early due to no improvement for {NO_IMPROVE_LIMIT} generations (gen {gen})")
+                pass
                 break
 
     # decode best individual to assignments for output
