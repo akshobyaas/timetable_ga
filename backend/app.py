@@ -1,23 +1,27 @@
-# backend/app.py
 from fastapi import FastAPI, UploadFile, File, Form
+from fastapi.middleware.cors import CORSMiddleware
+import pandas as pd
 import math, random
 from fastapi.responses import JSONResponse
-import pandas as pd
-from backend.ga_solver import generate_timetable   # import the stub we created
+from backend.ga_solver import generate_timetable
 
-# Add CORS middleware so the frontend can call the API (local dev)
-from fastapi.middleware.cors import CORSMiddleware
+app = FastAPI(title="Timetable GA Backend")
 
-app = FastAPI(title="Timetable GA (MVP)")
+# ✅ Proper CORS setup
+origins = [
+    "https://tt-generator-ga.netlify.app",  # your frontend Netlify domain
+    "http://localhost:5173",  # optional for local dev
+    "http://127.0.0.1:5173"
+]
 
-# Allow everything for local development only
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],        # allow all origins (safe for local dev)
+    allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["*"],  # allows OPTIONS automatically
+    allow_headers=["*"]
 )
+
 
 
 @app.get("/")
