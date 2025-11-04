@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Timetable GA — Simple UI</title>
+  <title>Timetable GA — Engineering Timetable</title>
 
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
@@ -62,7 +62,7 @@
     #timetableContainer .timetable-card .font-semibold {
       display: block;
       font-weight: 700;
-      color: #0b1220;
+      color: #0f1724;
       font-size: 1rem;
       margin-bottom: 6px;
       letter-spacing: -0.2px;
@@ -112,9 +112,9 @@
 <body class="p-6 bg-gray-100 text-gray-900">
   <div class="max-w-4xl mx-auto bg-white rounded-lg shadow-md p-6">
     <div class="flex justify-between items-center mb-2">
-      <h1 class="text-2xl font-bold">Timetable GA — Upload & Generate</h1>
+      <h1 class="text-2xl font-bold">Timetable GA — Engineering Timetable</h1>
     </div>
-    <p id="subheading" class="text-sm text-gray-500 mb-4">Upload 3 CSV files (courses, faculty, slots) or enter data manually. Click Generate.</p>
+    <p id="subheading" class="text-sm text-gray-500 mb-4">Upload 4 CSV files (courses, faculty, slots, rooms) or enter data manually. Click Generate.</p>
 
     <div id="statusBlock" class="mb-4 text-sm text-gray-700 flex items-center space-x-3">
       <div id="spinner" class="hidden" aria-hidden="true">
@@ -142,12 +142,17 @@
     <div id="manualArea" class="mb-4 hidden bg-white rounded-lg p-4">
       <div class="mb-3">
         <h3 class="font-medium">Courses</h3>
+        <p class="text-xs text-gray-500 mb-1">Enter course details. L-T-P format: Lectures-Tutorials-Practicals (e.g., 3-0-2). Lab duration is 2 hours.</p>
         <table id="coursesTable" class="w-full text-sm border-collapse">
           <thead class="text-xs text-gray-700 uppercase bg-gray-50">
             <tr>
               <th class="p-2 border">Code</th>
-              <th class="p-2 border">Title</th>
-              <th class="p-2 border">Weekly Hours</th>
+              <th class="p-2 border">L-T-P</th>
+              <th class="p-2 border">Faculty ID</th>
+              <th class="p-2 border">Student Group</th>
+              <th class="p-2 border">Student Count</th>
+              <th class="p-2 border">Lec Room Type</th>
+              <th class="p-2 border">Lab Room Type</th>
               <th class="p-2 border">Action</th>
             </tr>
           </thead>
@@ -158,19 +163,35 @@
 
       <div class="mb-3">
         <h3 class="font-medium">Faculty</h3>
-        <p class="text-xs text-gray-500 mb-1">Enter faculty initials (shorthand) and full name. IDs are generated for server.</p>
+        <p class="text-xs text-gray-500 mb-1">Enter faculty details. IDs are used to link courses.</p>
         <table id="facultyTable" class="w-full text-sm border-collapse">
           <thead class="text-xs text-gray-700 uppercase bg-gray-50">
             <tr>
-              <th class="p-2 border">Initials</th>
-              <th class="p-2 border">Full Name</th>
-              <th class="p-2 border">Can Teach (comma-separated codes)</th>
+              <th class="p-2 border">ID</th>
+              <th class="p-2 border">Name</th>
               <th class="p-2 border">Action</th>
             </tr>
           </thead>
           <tbody></tbody>
         </table>
         <button id="addFaculty" type="button" class="mt-2 px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-sm rounded">+ Add faculty</button>
+      </div>
+
+      <div class="mb-3">
+        <h3 class="font-medium">Rooms</h3>
+        <p class="text-xs text-gray-500 mb-1">Define available rooms, their type (e.g., LectureHall, ComputerLab), and capacity.</p>
+        <table id="roomsTable" class="w-full text-sm border-collapse">
+          <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+            <tr>
+              <th class="p-2 border">Room ID</th>
+              <th class="p-2 border">Room Type</th>
+              <th class="p-2 border">Capacity</th>
+              <th class="p-2 border">Action</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+        <button id="addRoom" type="button" class="mt-2 px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-sm rounded">+ Add room</button>
       </div>
 
       <div>
@@ -215,6 +236,12 @@
         <label for="slots" class="flex-shrink-0 px-2 py-1 text-sm font-medium text-white bg-indigo-600 rounded-lg cursor-pointer hover:bg-indigo-700">Choose Slots CSV</label>
         <input id="slots" type="file" accept=".csv" class="hidden" />
         <span id="slots-filename" class="text-sm text-gray-500 truncate">No file chosen</span>
+      </div>
+
+      <div class="flex items-center space-x-4">
+        <label for="rooms" class="flex-shrink-0 px-2 py-1 text-sm font-medium text-white bg-indigo-600 rounded-lg cursor-pointer hover:bg-indigo-700">Choose Rooms CSV</label>
+        <input id="rooms" type="file" accept=".csv" class="hidden" />
+        <span id="rooms-filename" class="text-sm text-gray-500 truncate">No file chosen</span>
       </div>
     </form>
 

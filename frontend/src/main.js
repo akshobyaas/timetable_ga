@@ -62,22 +62,26 @@ function showManualMode(enabled) {
   if (enabled) {
     manualArea.classList.remove('hidden');
     uploadForm.classList.add('hidden');
-    if (subheading) subheading.innerText = 'Enter data manually for courses, faculty, and slots. Click Generate.';
+    if (subheading) subheading.innerText = 'Enter data manually for courses, faculty, slots, and rooms. Click Generate.';
   } else {
     manualArea.classList.add('hidden');
     uploadForm.classList.remove('hidden');
-    if (subheading) subheading.innerText = 'Upload 3 CSV files (courses, faculty, slots) or enter data manually. Click Generate.';
+    if (subheading) subheading.innerText = 'Upload 4 CSV files (courses, faculty, slots, rooms) or enter data manually. Click Generate.';
   }
 }
 
 // ---------- Row builders ----------
-function addCourseRow(code = '', title = '', hours = '') {
+function addCourseRow(code = '', ltp = '', faculty_id = '', student_group = '', student_count = '', lec_room_type = 'LectureHall', lab_room_type = 'ComputerLab') {
   const tbody = el('coursesTable').querySelector('tbody');
   const tr = document.createElement('tr');
   tr.className = 'bg-white border-b';
   tr.appendChild(createCell(`<input aria-label="Course code" placeholder="CS101" class="w-full text-sm p-1 bg-gray-50 border border-gray-300 rounded-md" value="${code}">`));
-  tr.appendChild(createCell(`<input aria-label="Course title" placeholder="Data Structures" class="w-full text-sm p-1 bg-gray-50 border border-gray-300 rounded-md" value="${title}">`));
-  tr.appendChild(createCell(`<input aria-label="Weekly hours" placeholder="1" class="w-full text-sm p-1 bg-gray-50 border border-gray-300 rounded-md" type="number" min="1" value="${hours || 1}">`));
+  tr.appendChild(createCell(`<input aria-label="L-T-P" placeholder="3-0-2" class="w-full text-sm p-1 bg-gray-50 border border-gray-300 rounded-md" value="${ltp}">`));
+  tr.appendChild(createCell(`<input aria-label="Faculty ID" placeholder="F1" class="w-full text-sm p-1 bg-gray-50 border border-gray-300 rounded-md" value="${faculty_id}">`));
+  tr.appendChild(createCell(`<input aria-label="Student Group" placeholder="CS_Year2" class="w-full text-sm p-1 bg-gray-50 border border-gray-300 rounded-md" value="${student_group}">`));
+  tr.appendChild(createCell(`<input aria-label="Student Count" placeholder="60" class="w-full text-sm p-1 bg-gray-50 border border-gray-300 rounded-md" type="number" min="1" value="${student_count || 1}">`));
+  tr.appendChild(createCell(`<input aria-label="Lecture Room Type" placeholder="LectureHall" class="w-full text-sm p-1 bg-gray-50 border border-gray-300 rounded-md" value="${lec_room_type}">`));
+  tr.appendChild(createCell(`<input aria-label="Lab Room Type" placeholder="ComputerLab" class="w-full text-sm p-1 bg-gray-50 border border-gray-300 rounded-md" value="${lab_room_type}">`));
   tr.appendChild(createCell(`<button type="button" class="remove-row text-sm px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded">Remove</button>`));
   tbody.appendChild(tr);
 
@@ -87,13 +91,28 @@ function addCourseRow(code = '', title = '', hours = '') {
   realtimeValidate();
 }
 
-function addFacultyRow(initials = '', fullname = '', can_teach = '') {
+function addFacultyRow(id = '', name = '') {
   const tbody = el('facultyTable').querySelector('tbody');
   const tr = document.createElement('tr');
   tr.className = 'bg-white border-b';
-  tr.appendChild(createCell(`<input aria-label="Faculty initials" placeholder="PR" class="w-full text-sm p-1 bg-gray-50 border border-gray-300 rounded-md" value="${initials}">`));
-  tr.appendChild(createCell(`<input aria-label="Faculty full name" placeholder="Prof Rao" class="w-full text-sm p-1 bg-gray-50 border border-gray-300 rounded-md" value="${fullname}">`));
-  tr.appendChild(createCell(`<input aria-label="Can teach (comma-separated codes)" placeholder="CS101,CS102" class="w-full text-sm p-1 bg-gray-50 border border-gray-300 rounded-md" value="${can_teach}">`));
+  tr.appendChild(createCell(`<input aria-label="Faculty ID" placeholder="F1" class="w-full text-sm p-1 bg-gray-50 border border-gray-300 rounded-md" value="${id}">`));
+  tr.appendChild(createCell(`<input aria-label="Faculty Name" placeholder="Prof. Smith" class="w-full text-sm p-1 bg-gray-50 border border-gray-300 rounded-md" value="${name}">`));
+  tr.appendChild(createCell(`<button type="button" class="remove-row text-sm px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded">Remove</button>`));
+  tbody.appendChild(tr);
+
+  tr.querySelectorAll('input').forEach(input => {
+    input.addEventListener('input', realtimeValidate);
+  });
+  realtimeValidate();
+}
+
+function addRoomRow(id = '', type = 'LectureHall', capacity = '') {
+  const tbody = el('roomsTable').querySelector('tbody');
+  const tr = document.createElement('tr');
+  tr.className = 'bg-white border-b';
+  tr.appendChild(createCell(`<input aria-label="Room ID" placeholder="CR101" class="w-full text-sm p-1 bg-gray-50 border border-gray-300 rounded-md" value="${id}">`));
+  tr.appendChild(createCell(`<input aria-label="Room Type" placeholder="LectureHall" class="w-full text-sm p-1 bg-gray-50 border border-gray-300 rounded-md" value="${type}">`));
+  tr.appendChild(createCell(`<input aria-label="Capacity" placeholder="60" class="w-full text-sm p-1 bg-gray-50 border border-gray-300 rounded-md" type="number" min="1" value="${capacity || 1}">`));
   tr.appendChild(createCell(`<button type="button" class="remove-row text-sm px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded">Remove</button>`));
   tbody.appendChild(tr);
 
@@ -236,43 +255,88 @@ function updateAllMarkButtons() {
 
 function realtimeValidate() {
   const courseCodes = new Set();
-  const allCourseRows = Array.from(el('coursesTable').querySelectorAll('tbody tr'));
+  const facultyIds = new Set();
+  const roomIds = new Set();
+  const roomTypes = new Set();
 
+  // Validate Faculty
+  const allFacultyRows = Array.from(el('facultyTable').querySelectorAll('tbody tr'));
+  allFacultyRows.forEach((r, i) => {
+    const inputs = r.querySelectorAll('input');
+    const idInput = inputs[0];
+    const nameInput = inputs[1];
+
+    const id = idInput.value.trim();
+    const name = nameInput.value.trim();
+
+    const isDuplicate = allFacultyRows.some((otherRow, otherIdx) => otherIdx !== i && otherRow.querySelector('input').value.trim() === id);
+    idInput.classList.toggle('input-error', !id || isDuplicate);
+    nameInput.classList.toggle('input-error', !name);
+    if (id) facultyIds.add(id);
+  });
+
+  // Validate Rooms
+  const allRoomRows = Array.from(el('roomsTable').querySelectorAll('tbody tr'));
+  allRoomRows.forEach((r, i) => {
+    const inputs = r.querySelectorAll('input');
+    const idInput = inputs[0];
+    const typeInput = inputs[1];
+    const capacityInput = inputs[2];
+
+    const id = idInput.value.trim();
+    const type = typeInput.value.trim();
+    const capacity = capacityInput.value.trim();
+
+    const isDuplicate = allRoomRows.some((otherRow, otherIdx) => otherIdx !== i && otherRow.querySelector('input').value.trim() === id);
+    idInput.classList.toggle('input-error', !id || isDuplicate);
+    typeInput.classList.toggle('input-error', !type);
+    capacityInput.classList.toggle('input-error', !capacity || parseInt(capacity) < 1);
+    if (id) roomIds.add(id);
+    if (type) roomTypes.add(type);
+  });
+
+  // Validate Courses
+  const allCourseRows = Array.from(el('coursesTable').querySelectorAll('tbody tr'));
   allCourseRows.forEach((r, i) => {
     const inputs = r.querySelectorAll('input');
     const codeInput = inputs[0];
-    const titleInput = inputs[1];
-    const hoursInput = inputs[2];
+    const ltpInput = inputs[1];
+    const facultyIdInput = inputs[2];
+    const studentGroupInput = inputs[3];
+    const studentCountInput = inputs[4];
+    const lecRoomTypeInput = inputs[5];
+    const labRoomTypeInput = inputs[6];
 
     const code = codeInput.value.trim();
-    const title = titleInput.value.trim();
-    const hours = hoursInput.value.trim();
+    const ltp = ltpInput.value.trim();
+    const facultyId = facultyIdInput.value.trim();
+    const studentGroup = studentGroupInput.value.trim();
+    const studentCount = studentCountInput.value.trim();
+    const lecRoomType = lecRoomTypeInput.value.trim();
+    const labRoomType = labRoomTypeInput.value.trim();
 
-    // Code validation
-    const isDuplicate = allCourseRows.some((otherRow, otherIdx) => otherIdx !== i && otherRow.querySelector('input').value.trim() === code);
-    codeInput.classList.toggle('input-error', !code || isDuplicate);
+    // Course Code validation
+    const isDuplicateCode = allCourseRows.some((otherRow, otherIdx) => otherIdx !== i && otherRow.querySelector('input').value.trim() === code);
+    codeInput.classList.toggle('input-error', !code || isDuplicateCode);
     if (code) courseCodes.add(code);
 
-    // Title validation
-    titleInput.classList.toggle('input-error', !title);
+    // L-T-P validation (simple format check)
+    const ltpRegex = /^\d+-\d+-\d+$/;
+    ltpInput.classList.toggle('input-error', !ltp || !ltpRegex.test(ltp));
 
-    // Hours validation
-    hoursInput.classList.toggle('input-error', !hours || parseInt(hours) < 1);
-  });
+    // Faculty ID validation
+    facultyIdInput.classList.toggle('input-error', !facultyId || !facultyIds.has(facultyId));
 
-  const facultyRows = Array.from(el('facultyTable').querySelectorAll('tbody tr'));
-  facultyRows.forEach((r) => {
-    const inputs = r.querySelectorAll('input');
-    const initialsInput = inputs[0];
-    const nameInput = inputs[1];
-    const canTeachInput = inputs[2];
+    // Student Group validation (ensure one group for now)
+    studentGroupInput.classList.toggle('input-error', !studentGroup);
+    // TODO: Add logic to ensure only one unique student group is entered across all courses
 
-    initialsInput.classList.toggle('input-error', !initialsInput.value.trim());
-    nameInput.classList.toggle('input-error', !nameInput.value.trim());
+    // Student Count validation
+    studentCountInput.classList.toggle('input-error', !studentCount || parseInt(studentCount) < 1);
 
-    const canTeachCodes = canTeachInput.value.split(',').map(s => s.trim()).filter(Boolean);
-    const allCodesExist = canTeachCodes.every(code => courseCodes.has(code));
-    canTeachInput.classList.toggle('input-error', canTeachCodes.length > 0 && !allCodesExist);
+    // Room Type validation
+    lecRoomTypeInput.classList.toggle('input-error', !lecRoomType || !roomTypes.has(lecRoomType));
+    labRoomTypeInput.classList.toggle('input-error', !labRoomType || !roomTypes.has(labRoomType));
   });
 
   const slotRows = Array.from(el('slotsTable').querySelectorAll('tbody tr'));
@@ -325,16 +389,18 @@ function timeToMinutes(t) {
   return hh * 60 + mm;
 }
 
-// ========== MAIN DOM READY / EVENT WIRING ==========
+// ========== MAIN DOM READY / EVENT WIRING ========== 
 document.addEventListener('DOMContentLoaded', () => {
   // File input handlers
   handleFileInput('courses', 'courses-filename');
   handleFileInput('faculty', 'faculty-filename');
   handleFileInput('slots', 'slots-filename');
+  handleFileInput('rooms', 'rooms-filename'); // New rooms file input
 
   // add-row handlers
   el('addCourse').addEventListener('click', () => addCourseRow());
   el('addFaculty').addEventListener('click', () => addFacultyRow());
+  el('addRoom').addEventListener('click', () => addRoomRow()); // New room row
   el('addSlot').addEventListener('click', () => addSlotRow());
 
   // open modal builder
@@ -343,6 +409,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // initial rows
   if (el('coursesTable').querySelector('tbody').children.length === 0) addCourseRow();
   if (el('facultyTable').querySelector('tbody').children.length === 0) addFacultyRow();
+  if (el('roomsTable').querySelector('tbody').children.length === 0) addRoomRow(); // Initial room row
   if (el('slotsTable').querySelector('tbody').children.length === 0) addSlotRow();
 
   // mode radios - use change so keyboard toggles work
@@ -357,28 +424,36 @@ document.addEventListener('DOMContentLoaded', () => {
   // sample button
   el('sampleBtn').addEventListener('click', () => {
     try {
-      const coursesCsv = "code,title,weekly_hours\nCS101,Data Structures,3\nCS102,Database Systems,3\nCS103,Operating Systems,3\n";
-      const facultyCsvManual = "initials,name,can_teach\nPR,Prof Rao,CS101|CS103\nPP,Prof Patil,CS102\n";
-      const slotsCsvManual = "day,start_time,end_time,type\nMon,09:00,10:00,Class\nMon,10:00,11:00,Class\nMon,11:00,11:30,Break\nMon,11:30,12:30,Class\nTue,09:00,10:00,Class\nTue,10:00,11:00,Class\n";
+      // New sample data for L-T-P courses, faculty, rooms, and slots
+      const coursesCsv = "course_code,ltp,faculty_id,student_group,student_count,required_room_type_lecture,required_room_type_lab\nCS201,3-0-2,F1,CS_Year2,60,LectureHall,ComputerLab\nMA201,3-1-0,F2,CS_Year2,60,LectureHall,None\nPH201,2-0-2,F3,CS_Year2,60,LectureHall,PhysicsLab\n";
+      const facultyCsv = "id,name\nF1,Prof. Alice\nF2,Prof. Bob\nF3,Dr. Carol\n";
+      const roomsCsv = "room_id,room_type,capacity\nLH101,LectureHall,70\nCL101,ComputerLab,30\nPL101,PhysicsLab,30\n";
+      const slotsCsv = "day,slot_index,start_time,end_time,type\nMon,0,09:00,10:00,Class\nMon,1,10:00,11:00,Class\nMon,2,11:00,12:00,Class\nMon,3,12:00,13:00,Break\nMon,4,13:00,14:00,Class\nMon,5,14:00,15:00,Class\nTue,0,09:00,10:00,Class\nTue,1,10:00,11:00,Class\nTue,2,11:00,12:00,Class\nTue,3,12:00,13:00,Break\nTue,4,13:00,14:00,Class\nTue,5,14:00,15:00,Class\n";
 
       if (el('modeManual').checked) {
         el('coursesTable').querySelector('tbody').innerHTML = '';
         el('facultyTable').querySelector('tbody').innerHTML = '';
+        el('roomsTable').querySelector('tbody').innerHTML = '';
         el('slotsTable').querySelector('tbody').innerHTML = '';
 
         coursesCsv.split('\n').slice(1).filter(Boolean).forEach(line => {
           const parts = line.split(',');
-          addCourseRow(parts[0]?.trim(), parts[1]?.trim(), parts[2]?.trim());
+          addCourseRow(parts[0]?.trim(), parts[1]?.trim(), parts[2]?.trim(), parts[3]?.trim(), parts[4]?.trim(), parts[5]?.trim(), parts[6]?.trim());
         });
 
-        facultyCsvManual.split('\n').slice(1).filter(Boolean).forEach(line => {
+        facultyCsv.split('\n').slice(1).filter(Boolean).forEach(line => {
           const parts = line.split(',');
-          addFacultyRow(parts[0]?.trim(), parts[1]?.trim(), (parts[2] || '').replace(/\|/g, ','));
+          addFacultyRow(parts[0]?.trim(), parts[1]?.trim());
         });
 
-        slotsCsvManual.split('\n').slice(1).filter(Boolean).forEach(line => {
+        roomsCsv.split('\n').slice(1).filter(Boolean).forEach(line => {
           const parts = line.split(',');
-          addSlotRow('', parts[0]?.trim(), parts[1]?.trim(), parts[2]?.trim(), parts[3]?.trim());
+          addRoomRow(parts[0]?.trim(), parts[1]?.trim(), parts[2]?.trim());
+        });
+
+        slotsCsv.split('\n').slice(1).filter(Boolean).forEach(line => {
+          const parts = line.split(',');
+          addSlotRow('', parts[0]?.trim(), parts[2]?.trim(), parts[3]?.trim(), parts[4]?.trim());
         });
 
         setStatus('Sample manual data loaded. Edit if needed and click Generate.');
@@ -390,17 +465,18 @@ document.addEventListener('DOMContentLoaded', () => {
       const coursesInput = el('courses');
       const facultyInput = el('faculty');
       const slotsInput = el('slots');
+      const roomsInput = el('rooms');
 
-      const faculty = "id,name,can_teach\nf1,Prof Rao,CS101|CS103\nf2,Prof Patil,CS102\n";
-      const slots = "id,day,slot_index,start_time,end_time\nmon-0,Mon,0,09:00,10:00\nmon-1,Mon,1,10:00,11:00\ntue-0,Tue,0,09:00,10:00\ntue-1,Tue,1,10:00,11:00\n";
       coursesInput.files = fileFromString(coursesCsv, 'courses.csv');
-      facultyInput.files = fileFromString(faculty, 'faculty.csv');
-      slotsInput.files = fileFromString(slots, 'slots.csv');
+      facultyInput.files = fileFromString(facultyCsv, 'faculty.csv');
+      slotsInput.files = fileFromString(slotsCsv, 'slots.csv');
+      roomsInput.files = fileFromString(roomsCsv, 'rooms.csv');
 
       // Manually trigger change event to update filename display
       coursesInput.dispatchEvent(new Event('change'));
       facultyInput.dispatchEvent(new Event('change'));
       slotsInput.dispatchEvent(new Event('change'));
+      roomsInput.dispatchEvent(new Event('change'));
 
       setStatus('Sample data loaded in inputs. Click Generate.');
     } catch (err) {
@@ -426,21 +502,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
         function stringToFile(content, filename = 'file.csv') {
           const blob = new Blob([content], { type: 'text/csv' });
-          try { return new File([blob], filename, { type: 'text/csv' }); }
-          catch (e) { const dt = new DataTransfer(); dt.items.add(new File([blob], filename, { type: 'text/csv' })); return dt.files[0]; }
+          try { return new File([blob], filename, { type: 'text/csv' }); } 
+          catch (e) { const dt = new DataTransfer(); dt.items.add(new File([blob], filename, { type: 'text/csv' })); return dt.files[0]; } 
         }
 
         function serializeCourses() {
           const rows = Array.from(el('coursesTable').querySelectorAll('tbody tr'));
           if (rows.length === 0) return null;
-          const lines = ['code,title,weekly_hours'];
+          const lines = ["course_code,ltp,faculty_id,student_group,student_count,required_room_type_lecture,required_room_type_lab"];
           for (const r of rows) {
             const inputs = r.querySelectorAll('input');
             const code = (inputs[0]?.value || '').trim();
-            const title = (inputs[1]?.value || '').trim();
-            const hours = (inputs[2]?.value || '1').trim();
+            const ltp = (inputs[1]?.value || '').trim();
+            const facultyId = (inputs[2]?.value || '').trim();
+            const studentGroup = (inputs[3]?.value || '').trim();
+            const studentCount = (inputs[4]?.value || '1').trim();
+            const lecRoomType = (inputs[5]?.value || '').trim();
+            const labRoomType = (inputs[6]?.value || '').trim();
             if (!code) continue;
-            lines.push(`${code.replace(/,/g, '')},${title.replace(/,/g, '')},${hours}`);
+            lines.push(`${code},${ltp},${facultyId},${studentGroup},${studentCount},${lecRoomType},${labRoomType}`);
           }
           return lines.join('\n');
         }
@@ -448,20 +528,28 @@ document.addEventListener('DOMContentLoaded', () => {
         function serializeFaculty() {
           const rows = Array.from(el('facultyTable').querySelectorAll('tbody tr'));
           if (rows.length === 0) return null;
-          const lines = ['id,name,can_teach'];
-          let idx = 1;
+          const lines = ["id,name"];
           for (const r of rows) {
             const inputs = r.querySelectorAll('input');
-            const initials = (inputs[0]?.value || '').trim();
+            const id = (inputs[0]?.value || '').trim();
             const name = (inputs[1]?.value || '').trim();
-            const canTeachRaw = (inputs[2]?.value || '').trim();
-            const canTeach = canTeachRaw.split(',').map(s => s.trim()).filter(Boolean).join('|');
-            if (!initials && !name) continue;
-            let id = initials ? initials.replace(/\s+/g, '_') : `f${idx}`;
-            id = id.toLowerCase();
-            id = id.replace(/,/g, '');
-            lines.push(`${id},${name.replace(/,/g, '')},${canTeach}`);
-            idx++;
+            if (!id) continue;
+            lines.push(`${id},${name}`);
+          }
+          return lines.join('\n');
+        }
+
+        function serializeRooms() {
+          const rows = Array.from(el('roomsTable').querySelectorAll('tbody tr'));
+          if (rows.length === 0) return null;
+          const lines = ["room_id,room_type,capacity"];
+          for (const r of rows) {
+            const inputs = r.querySelectorAll('input');
+            const id = (inputs[0]?.value || '').trim();
+            const type = (inputs[1]?.value || '').trim();
+            const capacity = (inputs[2]?.value || '1').trim();
+            if (!id) continue;
+            lines.push(`${id},${type},${capacity}`);
           }
           return lines.join('\n');
         }
@@ -470,7 +558,7 @@ document.addEventListener('DOMContentLoaded', () => {
         function serializeSlots() {
           const rows = Array.from(el('slotsTable').querySelectorAll('tbody tr'));
           if (rows.length === 0) return null;
-          const lines = ['id,day,slot_index,start_time,end_time,type'];
+          const lines = ['day,slot_index,start_time,end_time,type'];
           // group by day to produce slot_index sequence per day
           const dayGroups = {};
           for (const r of rows) {
@@ -511,9 +599,10 @@ document.addEventListener('DOMContentLoaded', () => {
           const coursesCsv = serializeCourses();
           const facultyCsv = serializeFaculty();
           const slotsCsv = serializeSlots();
+          const roomsCsv = serializeRooms();
 
-          if (!coursesCsv || !facultyCsv || !slotsCsv) {
-            setStatus('Please fill courses, faculty and slots tables before generating.', true, false);
+          if (!coursesCsv || !facultyCsv || !slotsCsv || !roomsCsv) {
+            setStatus('Please fill all courses, faculty, slots, and rooms tables before generating.', true, false);
             generateBtn.disabled = false;
             return;
           }
@@ -521,13 +610,15 @@ document.addEventListener('DOMContentLoaded', () => {
           fd.append('courses', stringToFile(coursesCsv, 'courses.csv'));
           fd.append('faculty', stringToFile(facultyCsv, 'faculty.csv'));
           fd.append('slots', stringToFile(slotsCsv, 'slots.csv'));
+          fd.append('rooms', stringToFile(roomsCsv, 'rooms.csv'));
         } else {
           const courses = el('courses').files[0];
           const faculty = el('faculty').files[0];
           const slots = el('slots').files[0];
+          const rooms = el('rooms').files[0];
 
-          if (!courses || !faculty || !slots) {
-            setStatus('Please attach all three CSV files (courses, faculty, slots) or switch to manual entry.', true, false);
+          if (!courses || !faculty || !slots || !rooms) {
+            setStatus('Please attach all four CSV files (courses, faculty, slots, rooms) or switch to manual entry.', true, false);
             generateBtn.disabled = false;
             return;
           }
@@ -535,6 +626,7 @@ document.addEventListener('DOMContentLoaded', () => {
           fd.append('courses', courses);
           fd.append('faculty', faculty);
           fd.append('slots', slots);
+          fd.append('rooms', rooms);
         }
 
         setStatus('Uploading & generating timetable — please wait...', false, true);
@@ -543,7 +635,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!res.ok) {
           const errText = await res.text().catch(() => null);
           let err = null;
-          try { err = JSON.parse(errText); } catch (e) { err = null; }
+          try { err = JSON.parse(errText); } catch (e) { err = null; } 
           setStatus('Server error: ' + (err?.detail || err?.error || res.status), true, false);
           generateBtn.disabled = false;
           return;
@@ -556,7 +648,7 @@ document.addEventListener('DOMContentLoaded', () => {
       } catch (err) {
         console.error('Generate handler error', err);
         setStatus('Error during generation: ' + (err && err.message), true, false);
-        try { generateBtn.disabled = false; } catch (e) { }
+        try { generateBtn.disabled = false; } catch (e) { } 
       }
     });
   }
@@ -569,7 +661,7 @@ document.addEventListener('DOMContentLoaded', () => {
   updateAllMarkButtons();
 });
 
-// ========== COMMON DAY BUILDER (modal) ==========
+// ========== COMMON DAY BUILDER (modal) ========== 
 function openCommonDayBuilder() {
   const modalRoot = el('modalRoot'); modalRoot.innerHTML = '';
   const backdrop = document.createElement('div'); backdrop.className = 'modal-backdrop';
@@ -674,7 +766,7 @@ function openCommonDayBuilder() {
   });
 }
 
-// ========== RENDER / DOWNLOAD / IMAGE ==========
+// ========== RENDER / DOWNLOAD / IMAGE ========== 
 // Renders timetable as day × time-range grid using slot_label / start fields.
 // Expect assignments items to include: day, slot_label, start, end, course, faculty, slot_index
 function renderTimetable(assignments) {
@@ -685,72 +777,53 @@ function renderTimetable(assignments) {
     return;
   }
 
-  // collect unique slot labels keyed by sort key (start time or slot_index fallback)
-  const slotMap = {}; // sortKey -> {label, sortKey}
-  assignments.forEach(a => {
-    const start = a.start || null;
-    const label = a.slot_label || (a.slot_id || (`Slot ${a.slot_index + 1}`));
-    let sortKey = null;
-    if (start) {
-      const mins = timeToMinutes(start);
-      sortKey = (mins !== null) ? String(mins).padStart(5, '0') : null;
-    }
-    if (sortKey === null) {
-      // fallback to slot_index if available (stable)
-      sortKey = (typeof a.slot_index === 'number') ? `I${String(a.slot_index).padStart(5,'0')}` : `Z${label}`;
-    }
-    // ensure uniqueness if same start and label repeat
-    let key = sortKey;
-    let i = 0;
-    while (slotMap[key] && slotMap[key].label !== label) {
-      i++;
-      key = sortKey + '-' + i;
-    }
-    slotMap[key] = { label, sortKey: key, start: a.start };
+  // Extract unique days and sort them
+  const days = [...new Set(assignments.map(a => a.day))].sort((a, b) => {
+    const dayOrder = { 'Mon': 0, 'Tue': 1, 'Wed': 2, 'Thu': 3, 'Fri': 4, 'Sat': 5, 'Sun': 6 };
+    return (dayOrder[a] ?? 99) - (dayOrder[b] ?? 99);
   });
 
-  // sort slot keys by numeric part if possible
-  const sortedKeys = Object.keys(slotMap).sort((a, b) => {
-    const na = parseInt(a.split('-')[0].replace(/^I/, ''), 10);
-    const nb = parseInt(b.split('-')[0].replace(/^I/, ''), 10);
-    if (isNaN(na) || isNaN(nb)) return a.localeCompare(b);
-    return na - nb;
-  });
-  const slotLabels = sortedKeys.map(k => slotMap[k].label);
-
-  // days sorted
-  const days = [...new Set(assignments.map(a => a.day))].sort((x,y) => {
-    if (!x) return 1; if (!y) return -1;
-    return x.localeCompare(y);
+  // Extract unique slot times (start_time) and sort them
+  const slotTimes = [...new Set(assignments.map(a => a.start_time))].sort((a, b) => {
+    const timeA = timeToMinutes(a);
+    const timeB = timeToMinutes(b);
+    return (timeA ?? 0) - (timeB ?? 0);
   });
 
-  // build lookup: day -> label -> assignment
+  // Create a grid for easy lookup: grid[day][start_time] = [assignments]
   const grid = {};
-  for (const d of days) {
-    grid[d] = {};
-    for (const lbl of slotLabels) grid[d][lbl] = null;
-  }
-  assignments.forEach(a => {
-    const lbl = a.slot_label || a.slot_id || (`Slot ${a.slot_index + 1}`);
-    if (!(a.day in grid)) grid[a.day] = {};
-    grid[a.day][lbl] = a;
+  days.forEach(day => {
+    grid[day] = {};
+    slotTimes.forEach(time => {
+      grid[day][time] = [];
+    });
   });
 
-  // build HTML table
+  assignments.forEach(a => {
+    if (grid[a.day] && grid[a.day][a.start_time]) {
+      grid[a.day][a.start_time].push(a);
+    }
+  });
+
+  // Build HTML table
   let html = '<table class="timetable-card min-w-full text-sm border-collapse border border-gray-200">';
-  html += '<thead class="bg-gray-50"><tr class="text-left"><th class="p-2 border-b border-gray-200">Day\\Time</th>';
-  for (const lbl of slotLabels) {
-    html += `<th class="p-2 border-b border-gray-200">${lbl}</th>`;
+  html += '<thead class="bg-gray-50"><tr class="text-left"><th class="p-2 border-b border-gray-200">Day\Time</th>';
+  for (const time of slotTimes) {
+    html += `<th class="p-2 border-b border-gray-200">${time}</th>`;
   }
   html += '</tr></thead><tbody>';
-  for (const d of days) {
-    html += `<tr class="border-b border-gray-200 bg-white"><td class="p-2 font-medium">${d}</td>`;
-    for (const lbl of slotLabels) {
-      const cell = grid[d][lbl];
-      if (cell) {
-        html += `<td class="p-2 border-l border-gray-200 slot-cell">
-          <div class="font-semibold">${cell.course}</div>
-          <div class="text-xs text-gray-600">${cell.faculty || ''}</div>
+
+  for (const day of days) {
+    html += `<tr class="border-b border-gray-200 bg-white"><td class="p-2 font-medium">${day}</td>`;
+    for (const time of slotTimes) {
+      const cells = grid[day][time];
+      if (cells && cells.length > 0) {
+        // Assuming one assignment per slot for now due to clash penalties
+        const cell = cells[0]; 
+        html += `<td class="p-2 border-l border-gray-200 slot-cell ${cell.class_type === 'Lab' ? 'lab' : ''}">
+          <div class="font-semibold course-code">${cell.course}</div>
+          <div class="text-xs text-gray-600 faculty">${cell.faculty || ''}</div>
+          <div class="text-xs text-gray-500 room">${cell.room || ''}</div>
         </td>`;
       } else {
         html += `<td class="p-2 border-l border-gray-200 text-gray-400">—</td>`;
@@ -766,8 +839,18 @@ function renderTimetable(assignments) {
 }
 
 function downloadCsv(assignments) {
-  const header = ['day', 'slot_index', 'course', 'faculty', 'slot_label', 'start', 'end'];
-  const rows = assignments.map(a => [a.day, a.slot_index, a.course, a.faculty, a.slot_label, a.start, a.end].join(','));
+  const header = ['day', 'slot_index', 'start_time', 'end_time', 'course', 'class_type', 'student_group', 'faculty', 'room'];
+  const rows = assignments.map(a => [
+    a.day,
+    a.slot_index,
+    a.start_time,
+    a.end_time,
+    a.course,
+    a.class_type,
+    a.student_group,
+    a.faculty,
+    a.room
+  ].join(','));
   const csv = [header.join(','), ...rows].join('\n');
   const blob = new Blob([csv], { type: 'text/csv' });
   const url = URL.createObjectURL(blob);
@@ -796,5 +879,5 @@ async function downloadTimetableImage(filename = 'timetable.png') {
   } catch (err) {
     console.error('Capture error:', err);
     setStatus('Error capturing image: ' + err.message, true, false);
-  } finally { container.style.overflow = prevOverflow; }
+  } finally { container.style.overflow = prevOverflow; } 
 }

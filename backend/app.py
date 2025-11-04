@@ -48,6 +48,7 @@ async def generate(
     courses: UploadFile = File(...),
     faculty: UploadFile = File(...),
     slots: UploadFile = File(...),
+    rooms: UploadFile = File(...),
     runs: int = Form(3),           # how many independent GA trials to run (default 3)
     seed: int | None = Form(None)  # optional base seed for reproducible trials
 ):
@@ -56,6 +57,7 @@ async def generate(
         courses_df = pd.read_csv(courses.file)
         faculty_df = pd.read_csv(faculty.file)
         slots_df = pd.read_csv(slots.file)
+        rooms_df = pd.read_csv(rooms.file)
     except Exception as e:
         return JSONResponse(status_code=400, content={"error": "Failed to parse CSVs", "detail": str(e)})
 
@@ -80,7 +82,7 @@ async def generate(
         random.seed(s)
 
         # call the GA (it uses python's random module internally)
-        result = generate_timetable(courses_df, faculty_df, slots_df)
+        result = generate_timetable(courses_df, faculty_df, slots_df, rooms_df)
 
         # read fitness (fallback to 0.0 if not provided)
         try:
