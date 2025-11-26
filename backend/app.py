@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import pandas as pd
 import math, random
 from fastapi.responses import JSONResponse
-from ga_solver import generate_timetable
+from .ga_solver import generate_timetable
 from fastapi.responses import Response
 
 app = FastAPI(title="Timetable GA Backend")
