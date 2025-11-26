@@ -48,7 +48,6 @@ def _parse_ltp(ltp_value):
     if ltp_value is None:
         return 0, 0, 0
     if isinstance(ltp_value, (int, float)):
-        # unusual case where ltp given as number — treat as lectures
         try:
             return int(ltp_value), 0, 0
         except Exception:
@@ -96,15 +95,27 @@ def _build_domain(courses_df, faculty_df, slots_df, rooms_df):
     # Normalize rooms and faculty
     rooms = rooms_df.to_dict(orient='records')
     fac_records = faculty_df.to_dict(orient='records')
+
     # Build faculty_map safely using possible name/id column names
     fac_cols = faculty_df.columns.tolist()
     fac_id_col = _pick_col(fac_cols, ['id', 'faculty_id', 'facultyId'], default=None)
     fac_name_col = _pick_col(fac_cols, ['name', 'faculty_name', 'facultyName'], default=None)
     faculty_map = {}
     for f in fac_records:
-        fid = f.get(fac_id_col) if fac_id_col else f.get('id') or f.get('faculty_id') or f.get('facultyId')
-        fname = f.get(fac_name_col) if fac_name_col else f.get('name') or f.get('faculty_name') or f.get('facultyName') or str(fid)
-        faculty_map[str(fid)] = fname
+        fid = None
+        if fac_id_col:
+            fid = f.get(fac_id_col)
+        if fid is None:
+            fid = f.get('id') or f.get('faculty_id') or f.get('facultyId')
+        fname = None
+        if fac_name_col:
+            fname = f.get(fac_name_col)
+        if not fname:
+            fname = f.get('name') or f.get('faculty_name') or f.get('facultyName') or str(fid)
+        # map both id -> name and name -> name so lookups succeed regardless of which is present
+        if fid is not None:
+            faculty_map[str(fid)] = fname
+        faculty_map[str(fname)] = fname
 
     # Build tasks from courses based on L-T-P
     tasks = []
@@ -164,9 +175,18 @@ def _build_domain(courses_df, faculty_df, slots_df, rooms_df):
         else:
             valid_rooms = [r for r in rooms if int(r.get('capacity', 0)) >= int(task['student_count'] or 0)]
 
-        # If no valid room, choices will remain empty and caller will receive a clear error
+        # Debug: if no valid rooms for this task, the choices will remain empty
+        if not valid_rooms:
+            print(f"[DOMAIN] No valid rooms for task: course={task.get('course_code')}, type={task.get('type')}, required_room_type={task.get('required_room_type')}, students={task.get('student_count')}")
+
         for i in range(len(slots)):
             start_slot = slots[i]
+            # if task requires specific slot type (e.g., Lab), ensure slot's type matches
+            slot_type = (start_slot.get('type') or 'Class')
+            task_is_lab = (str(task['type']).lower() == 'lab')
+            if task_is_lab and str(slot_type).lower() != 'lab':
+                continue
+
             # Lab contiguity check (if duration > 1)
             if task['duration'] > 1:
                 if i + task['duration'] > len(slots):

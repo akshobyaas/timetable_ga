@@ -2,9 +2,8 @@ from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 import pandas as pd
 import math, random
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from .ga_solver import generate_timetable
-from fastapi.responses import Response
 
 app = FastAPI(title="Timetable GA Backend")
 
@@ -12,7 +11,9 @@ app = FastAPI(title="Timetable GA Backend")
 origins = [
     "https://tt-generator-ga.netlify.app",  # your frontend Netlify domain
     "http://localhost:5173",  # optional for local dev
-    "http://127.0.0.1:5173"
+    "http://127.0.0.1:5173",
+    "http://localhost:8000",  # optional for local dev
+    "https://timetable-ga-backend.onrender.com"
 ]
 
 app.add_middleware(
@@ -24,16 +25,14 @@ app.add_middleware(
 )
 
 
-
 @app.get("/")
 def home():
     return {"message": "Timetable Generator API is running!"}
 
 
-# add this before your @app.post("/generate") handler
+# Preflight helper for some clients (optional since CORS middleware handles it)
 @app.options("/generate")
 async def generate_options():
-    # return the headers browsers expect for preflight
     headers = {
         "Access-Control-Allow-Origin": "https://tt-generator-ga.netlify.app",
         "Access-Control-Allow-Methods": "POST, OPTIONS",
@@ -60,6 +59,15 @@ async def generate(
         rooms_df = pd.read_csv(rooms.file)
     except Exception as e:
         return JSONResponse(status_code=400, content={"error": "Failed to parse CSVs", "detail": str(e)})
+
+    # Debug prints to logs - helpful when deployed (Render/uvicorn)
+    try:
+        print(f"[INPUT] courses_df shape={courses_df.shape}, cols={list(courses_df.columns)}")
+        print(f"[INPUT] faculty_df shape={faculty_df.shape}, cols={list(faculty_df.columns)}")
+        print(f"[INPUT] slots_df shape={slots_df.shape}, cols={list(slots_df.columns)}")
+        print(f"[INPUT] rooms_df shape={rooms_df.shape}, cols={list(rooms_df.columns)}")
+    except Exception as e:
+        print("[INPUT] Debug print failed:", e)
 
     # Run GA multiple times and pick best result
     best_overall = None
